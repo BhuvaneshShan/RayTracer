@@ -60,13 +60,15 @@ void interpreter(String filename) {
   
   String str[] = loadStrings(filename);
   if (str == null) println("Error! Failed to read the file.");
-  for (int i=0; i<str.length; i++) {
+  for (int i=0; i < str.length; i++) {
     
     String[] token = splitTokens(str[i], " "); // Get a line and parse tokens.
     
     if (token.length == 0) continue; // Skip blank line.
-    
-    if (token[0].equals("fov")) {
+    if(token[0].equals("rays_per_pixel")){
+      RTracer.setRaysPerPixel(int(token[1]));
+    }  
+    else if (token[0].equals("fov")) {
       RTracer.setFov(float(token[1]));
     }
     else if (token[0].equals("background")) {
@@ -82,6 +84,11 @@ void interpreter(String filename) {
       PVector txVertex = getTransformedVertex(float(token[2]),float(token[3]),float(token[4]));
       RTracer.addObject(new Sphere(float(token[1]),txVertex.x,txVertex.y,txVertex.z));
       //RTracer.addObject(new Sphere(float(token[1]),float(token[2]),float(token[3]),float(token[4])));
+    }
+    else if (token[0].equals("moving_sphere")){
+      PVector sxVertex = getTransformedVertex(float(token[2]),float(token[3]),float(token[4]));
+      PVector exVertex = getTransformedVertex(float(token[5]),float(token[6]),float(token[7]));
+      RTracer.addObject(new MovingSphere(float(token[1]),sxVertex.x,sxVertex.y,sxVertex.z,exVertex.x,exVertex.y,exVertex.z));
     }
     else if(token[0].equals("begin")){
       tempPolygon = new Polygon();

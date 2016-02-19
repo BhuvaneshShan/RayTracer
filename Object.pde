@@ -17,8 +17,6 @@ class Sphere extends Object{
     radius = tr;
   }
   float isIntersects(PVector rayorigin, PVector raydir){
-    //assumes origin as the start of the ray
-    //returns 0 if no intersection
     PVector tcenter = PVector.sub(pos,rayorigin);
     float a = raydir.x*raydir.x + raydir.y*raydir.y + raydir.z*raydir.z;
     float b = -2*(raydir.x*tcenter.x+raydir.y*tcenter.y+raydir.z*tcenter.z);
@@ -51,6 +49,52 @@ class Sphere extends Object{
   }
   PVector getNormal(PVector posOnObj){
     return PVector.sub(posOnObj,pos).normalize();
+  }
+  float dotWithNormal(PVector norm, PVector ray){
+    return norm.dot(ray);
+  }
+}
+class MovingSphere extends Object{
+  float radius;
+  PVector startPos;
+  PVector endPos;
+  PVector movingDir; //not normalized
+  float curRandomizedTime = 0;
+  MovingSphere(float tr, float sx,float sy, float sz, float ex, float ey, float ez){
+    super(sx,sy,sz);
+    radius = tr;
+    startPos = new PVector(sx,sy,sz);
+    endPos = new PVector(ex,ey,ez);
+    movingDir = PVector.sub(endPos, startPos);
+  }
+  PVector getPos(float time){
+    //time is expected to be between 0.0 and 1.0
+    return PVector.add(startPos,PVector.mult(movingDir,time));
+  }
+  float isIntersects(PVector rayorigin, PVector raydir){
+    float time = random(1);
+    curRandomizedTime = time;
+    PVector tcenter = PVector.sub( getPos(time), rayorigin);
+    float a = raydir.x*raydir.x + raydir.y*raydir.y + raydir.z*raydir.z;
+    float b = -2*(raydir.x*tcenter.x+raydir.y*tcenter.y+raydir.z*tcenter.z);
+    float c = tcenter.x*tcenter.x + tcenter.y*tcenter.y + tcenter.z*tcenter.z - radius*radius;
+    float d = b*b - 4*a*c;
+    if(d>=0){
+      //if real root
+      float t1 = (-b + sqrt(d))/2*a ;
+      float t2 = (-b - sqrt(d))/2*a ;
+      //if(t2<0) return t1;
+       if(t1<t2) return t1;
+      else return t2;
+    }else{
+      return 0.0;
+    }   
+  }
+  void assignMaterial(int id){
+    materialId = id;
+  }
+  PVector getNormal(PVector posOnObj){
+    return PVector.sub(posOnObj, getPos(curRandomizedTime)).normalize();
   }
   float dotWithNormal(PVector norm, PVector ray){
     return norm.dot(ray);
