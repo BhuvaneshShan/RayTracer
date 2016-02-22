@@ -15,6 +15,9 @@ class raytracer{
   int curMaterialId=0;
   color bg;
   
+  boolean hasLens = false;
+  Lens lens;
+  
   raytracer(){
     objects = new ArrayList<Object>();
     materials = new ArrayList<Material>();
@@ -32,10 +35,11 @@ class raytracer{
     maxx = int(k); maxy = int(k);
     println("k found"+k);
   }
-  /*void addObject(float tr, float tx, float ty, float tz){
-    objects.add(new Sphere(tr,tx,ty,tz));
-    println("object added:"+tr+" at "+tx+","+ty+","+tz);
-  }*/
+   void setLens(float lensRadius, float lensFocalDist){
+    //currently supports only one lens
+    hasLens = true;
+    lens = new Lens(lensRadius, lensFocalDist);
+  }
   void addObject(Object obj){
     obj.assignMaterial(curMaterialId);
     objects.add(obj);
@@ -46,8 +50,12 @@ class raytracer{
     curMaterialId=materials.size()-1;
     println("material added");
   }
-  void addLight(float x,float y, float z, float r, float g, float b){
+  /*void addLight(float x,float y, float z, float r, float g, float b){
     lights.add(new Light(x,y,z,r,g,b));
+    println("light added");
+  }*/
+  void addLight(Light light){
+    lights.add(light);
     println("light added");
   }
   void setBg(float r, float g, float b){
@@ -87,11 +95,30 @@ class raytracer{
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
         pixelColVal.set(0,0,0);
-        for(int i=0; i<raysPerPixel; i++){
-          raydir = getRayFromEyeToPixelPos(x,y,randomizeOffset);
+        
+        if(hasLens == true){
+          raydir = getRayFromEyeToPixelPos(x, y, false);
           raydir.normalize();
-          color pixelColor = intersectsObject(origin, raydir);
-          pixelColVal.add(convertColor(pixelColor));
+          PVector pointOnFocalPlane = lens.computeIntersectionPointOnFocalPlane(origin, raydir);
+          
+          for(int i=0; i<raysPerPixel; i++){
+            PVector pointOnLens = lens.randomPointOnLens();
+            raydir = PVector.sub(pointOnFocalPlane, pointOnLens);
+            raydir.normalize();
+            color pixelColor = intersectsObject(pointOnLens, raydir); //point on the lens is the origin
+            pixelColVal.add(convertColor(pixelColor));
+          }
+          
+        }else{
+          //when hasLens is false
+          
+          for(int i=0; i<raysPerPixel; i++){
+            raydir = getRayFromEyeToPixelPos(x,y,randomizeOffset);
+            raydir.normalize();
+            color pixelColor = intersectsObject(origin, raydir);
+            pixelColVal.add(convertColor(pixelColor));
+          }
+          
         }
         pixels[y*screen_width+x] = convertColor(pixelColVal.div(raysPerPixel));
       }
@@ -100,7 +127,6 @@ class raytracer{
   }
   
   color intersectsObject(PVector org, PVector raydir){
-    //Assumes origin as the start of the ray
     color pixelColor = bg;
     float finalZ = -MAX_FLOAT;
     for(int i=0;i<objects.size();i++){
@@ -128,7 +154,7 @@ class raytracer{
     color refrRayColor = color(0,0,0);
     //send ray to all lights
     for(int i=0;i<lights.size();i++){
-      PVector refrRayDir = PVector.sub(lights.get(i).pos, posOnObj).normalize();
+      PVector refrRayDir = PVector.sub(lights.get(i).getPos(), posOnObj).normalize();
       //check if ray hits any object before reaching light
       boolean hitAnObject=false;
       for(int j=0; j<objects.size(); j++){
@@ -153,7 +179,7 @@ class raytracer{
             println("refrRay:"+refrRay.x+","+refrRay.y+","+refrRay.z);
             println("coeff:"+coeff+",dist:"+distance);
           }*/
-          refrRayColor = addColors(refrRayColor,lights.get(i).col,coeff*intensity);
+          refrRayColor = addColors(refrRayColor,lights.get(i).getColor(),coeff*intensity);
       }
     }
     return refrRayColor;
@@ -168,6 +194,8 @@ class raytracer{
     objects.clear();
     materials.clear();
     lights.clear();
+    hasLens = false;
+    lens = null;
   }
   void clearPixelBuffer(){
     color black = color(0,0,0);

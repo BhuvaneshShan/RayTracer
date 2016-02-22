@@ -68,6 +68,9 @@ void interpreter(String filename) {
     if(token[0].equals("rays_per_pixel")){
       RTracer.setRaysPerPixel(int(token[1]));
     }  
+    else if(token[0].equals("lens")){
+      RTracer.setLens(float(token[1]), float(token[2]));
+    }
     else if (token[0].equals("fov")) {
       RTracer.setFov(float(token[1]));
     }
@@ -75,8 +78,15 @@ void interpreter(String filename) {
       RTracer.setBg(float(token[1]),float(token[2]),float(token[3]));
     }
     else if (token[0].equals("point_light")) {
-      RTracer.addLight(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]));
+      RTracer.addLight(new PointLight(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6])));
     }
+    else if (token[0].equals("disk_light")) {
+      RTracer.addLight(new DiskLight(float(token[1]),float(token[2]),float(token[3]), //x,y,z
+        float(token[4]), //rad
+        float(token[5]),float(token[6]), float(token[7]), //normal
+        float(token[8]),float(token[9]), float(token[10]) //r,g,b
+        )); 
+     }
     else if (token[0].equals("diffuse")) {
       RTracer.addMaterial(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]));
     }    
