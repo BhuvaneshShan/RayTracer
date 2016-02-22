@@ -15,3 +15,7 @@ A work under progress. Some of the rendered images can be seen below...
 
 ![alt tag](https://github.com/BhuvaneshShan/RayTracer/blob/master/t07.png)
 
+![alt tag](https://github.com/BhuvaneshShan/RayTracer/blob/master/t08.png)
+
+![alt tag](https://github.com/BhuvaneshShan/RayTracer/blob/master/t09.png)
+
