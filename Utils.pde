@@ -1,3 +1,8 @@
+void printlg(String s){
+  if(LOG)
+    println(s);
+}
+boolean LOG = true;
 color addColors(color a, color b){
   float re = red(a) + red(b);
   if(re>1) re = 1; else if(re<0) re = 0;

@@ -3,6 +3,7 @@
 //  Ray Tracing Shell
 //
 ///////////////////////////////////////////////////////////////////////
+import java.util.*;
 
 int screen_width = 300;
 int screen_height = 300;
@@ -18,6 +19,9 @@ void setup() {
   noStroke();
   colorMode (RGB, 1.0);
   background (0, 0, 0);
+  
+  //readying objects
+  instantiate();
   
   // grab the global matrix values (to use later when drawing pixels)
   PMatrix3D global_mat = (PMatrix3D) getMatrix();
@@ -59,7 +63,7 @@ void keyPressed() {
 void interpreter(String filename) {
   
   String str[] = loadStrings(filename);
-  if (str == null) println("Error! Failed to read the file.");
+  if (str == null) printlg("Error! Failed to read the file.");
   for (int i=0; i < str.length; i++) {
     
     String[] token = splitTokens(str[i], " "); // Get a line and parse tokens.
@@ -89,10 +93,19 @@ void interpreter(String filename) {
      }
     else if (token[0].equals("diffuse")) {
       RTracer.addMaterial(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]));
-    }    
+    }
+    else if(token[0].equals("named_object")){
+      NamedObjects.put(token[1], CurrentObject);
+    }
+    else if(token[0].equals("instance")){
+      println("top of stack:");
+      printMatrix();
+      RTracer.addToScene(token[1], (PMatrix3D)getMatrix());
+    }
     else if (token[0].equals("sphere")) {
       PVector txVertex = getTransformedVertex(float(token[2]),float(token[3]),float(token[4]));
       RTracer.addObject(new Sphere(float(token[1]),txVertex.x,txVertex.y,txVertex.z));
+      //CurrentObject = new Sphere(float(token[1]),txVertex.x,txVertex.y,txVertex.z);
       //RTracer.addObject(new Sphere(float(token[1]),float(token[2]),float(token[3]),float(token[4])));
     }
     else if (token[0].equals("moving_sphere")){
@@ -100,7 +113,15 @@ void interpreter(String filename) {
       PVector exVertex = getTransformedVertex(float(token[5]),float(token[6]),float(token[7]));
       RTracer.addObject(new MovingSphere(float(token[1]),sxVertex.x,sxVertex.y,sxVertex.z,exVertex.x,exVertex.y,exVertex.z));
     }
-    else if(token[0].equals("begin")){
+    else if (token[0].equals("box")){
+      PVector minBound = getTransformedVertex(float(token[1]),float(token[2]),float(token[3]));
+      PVector maxBound = getTransformedVertex(float(token[4]),float(token[5]),float(token[6]));
+      RTracer.addObject(new Box(minBound.x, minBound.y, minBound.z, maxBound.x, maxBound.y, maxBound.z));
+      if(!AddToList){
+        RTracer.addToScene(CurrentObject);
+        CurrentObject = null;
+      }
+    }else if(token[0].equals("begin")){
       tempPolygon = new Polygon();
     }
     else if(token[0].equals("end")){
@@ -108,10 +129,52 @@ void interpreter(String filename) {
         RTracer.addObject(new Polygon(tempPolygon));
       else if(tempPolygon.vertices.size()==3)
         RTracer.addObject(new Triangle(tempPolygon));  
+      if(!AddToList){
+        RTracer.addToScene(CurrentObject);
+        CurrentObject = null;
+      }
     }
     else if(token[0].equals("vertex")){
       PVector txVertex = getTransformedVertex(float(token[1]),float(token[2]),float(token[3]));
       tempPolygon.addVertex(txVertex.x,txVertex.y,txVertex.z);
+    }
+    else if(token[0].equals("begin_list")){
+      AddToList = true;
+      ListStartIndices.push(CurrentList.size());
+    }
+    else if(token[0].equals("end_list")){
+      int recentListStartIndex = (Integer) ListStartIndices.pop();
+      ObjList objList = new ObjList();
+      for(int k = recentListStartIndex; k<CurrentList.size();k++){
+        objList.addObject(CurrentList.get(k));
+      }
+      CurrentList.set(recentListStartIndex,objList);
+      CurrentList.subList(recentListStartIndex+1, CurrentList.size()).clear();
+      if(recentListStartIndex == 0){
+        RTracer.addToScene(CurrentList.get(0));
+        AddToList = false;
+        CurrentList.clear();
+        ListStartIndices.clear();
+      }
+    }
+    else if(token[0].equals("end_accel")){
+      
+      int recentListStartIndex = (Integer) ListStartIndices.pop();
+      ArrayList<Object> objs = new ArrayList<Object>();
+      for(int k = recentListStartIndex; k<CurrentList.size();k++){
+        objs.add(CurrentList.get(k));
+      }
+      Accelerator accel = new Accelerator( objs, 0);
+      
+      CurrentList.set(recentListStartIndex,accel);
+      CurrentList.subList(recentListStartIndex+1, CurrentList.size()).clear();
+      if(recentListStartIndex == 0){
+        RTracer.addToScene(CurrentList.get(0));
+        AddToList = false;
+        CurrentList.clear();
+        ListStartIndices.clear();
+      }
+      
     }
     else if(token[0].equals("push")){
       pushMatrix();
@@ -156,8 +219,18 @@ void interpreter(String filename) {
       float y1 = float(token[4]);
       rect(x0, screen_height-y1, x1-x0, y1-y0);
     }
+    else if (token[0].equals("reset_timer")) {
+      timer = millis();
+    }
+    else if (token[0].equals("print_timer")) {
+      int new_timer = millis();
+      int diff = new_timer - timer;
+      float seconds = diff / 1000.0;
+      println("timer = " + seconds);
+    }
     else if (token[0].equals("write")) {
       restoreMatrix();
+      println("Rendering...");
       RTracer.rayTrace();
       save(token[1]);  
     }
@@ -165,8 +238,7 @@ void interpreter(String filename) {
 }
 
 //Some global variables for accessing
-Polygon tempPolygon;
-
+int timer;
 //  Draw frames.  Should be left empty.
 void draw() {
 }
@@ -187,4 +259,11 @@ PVector getTransformedVertex(float x, float y, float z){
 // when mouse is pressed, print the cursor location
 void mousePressed() {
   println ("mouse: " + mouseX + " " + mouseY);
+}
+
+void instantiate(){
+  CurrentObject = null;
+  NamedObjects = new HashMap<String, Object>();
+  CurrentList = new ArrayList<Object>();
+  ListStartIndices = new Stack();
 }

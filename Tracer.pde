@@ -33,7 +33,7 @@ class raytracer{
 
     minx = int(-k); miny = int(-k); 
     maxx = int(k); maxy = int(k);
-    println("k found"+k);
+    printlg("k found"+k);
   }
    void setLens(float lensRadius, float lensFocalDist){
     //currently supports only one lens
@@ -42,42 +42,42 @@ class raytracer{
   }
   void addObject(Object obj){
     obj.assignMaterial(curMaterialId);
-    objects.add(obj);
-    println("object added at "+obj.pos.x+","+obj.pos.y+","+obj.pos.z);
+    if(AddToList){
+      CurrentList.add(obj);
+    }else{
+      CurrentObject = obj;
+    }
+    //printlg("current object set");
+    //objects.add(obj);
+    printlg("object set at "+obj.pos.x+","+obj.pos.y+","+obj.pos.z);
   }
   void addMaterial(float r, float g, float b, float ar, float ag, float ab){
     materials.add(new Material(r,g,b,ar,ag,ab));
     curMaterialId=materials.size()-1;
-    println("material added");
+    printlg("material added");
+  }
+  void addToScene(String instanceName, PMatrix3D topOfStack){
+    Object instance = new Instance(topOfStack,NamedObjects.get(instanceName));
+    objects.add(instance);
+    printlg(instanceName+"added to scene");
+  }
+  void addToScene(Object obj){
+    objects.add(obj);
+    printlg("object added to scene");
   }
   /*void addLight(float x,float y, float z, float r, float g, float b){
     lights.add(new Light(x,y,z,r,g,b));
-    println("light added");
+    printlg("light added");
   }*/
   void addLight(Light light){
     lights.add(light);
-    println("light added");
+    printlg("light added");
   }
   void setBg(float r, float g, float b){
     bg = color(r, g, b);
-    println("bg set");
+    printlg("bg set");
   }
-   PVector getRayFromEyeToPixelPos(int x, int y, boolean randomOffset){ 
-     float tx = 0; 
-     float ty = 0;
-     if(randomOffset == true){
-      tx = x + random(1);
-      ty = y + random(1);
-    }else{
-      tx = x + midPixelOffset;
-      ty = y + midPixelOffset;
-    }
-    float x1 = (tx-sw2)*k/sw2;
-    float y1 = (ty-sh2)*(-k)/sh2;
-    
-    PVector ray =  new PVector(x1 - origin.x ,y1 - origin.y ,z1 - origin.z); //x1-x0 (origin) y1-y0 z1-z0 but origin is 0,0,0
-    return ray;
-  }
+  
   void rayTrace(){
     loadPixels();
     
@@ -94,6 +94,12 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
+        if(x==screen_width/2 && y==screen_height/2){
+          LOG = true;
+        }
+        else{
+          LOG = false;
+        }
         pixelColVal.set(0,0,0);
         
         if(hasLens == true){
@@ -132,12 +138,24 @@ class raytracer{
     for(int i=0;i<objects.size();i++){
       float root = objects.get(i).isIntersects(org, raydir);
       if(root>0){ //positive means in the direction of the ray
-         PVector posOnObj = PVector.add( org, PVector.mult(raydir,root));
+        
+        printlg("IsIntersects obj "+i+" root:"+root);
+        
+        PVector txOrg = org;
+        PVector txRaydir = raydir;
+         if( objects.get(i) instanceof Instance){
+           txOrg = ((Instance)objects.get(i)).getInvTransVector(org);
+           txRaydir = ((Instance)objects.get(i)).getAdjointTransVector(raydir);
+           txRaydir.normalize();
+           printlg("is instance");
+         }
+         PVector posOnObj = PVector.add( txOrg, PVector.mult(txRaydir,root));
          if( posOnObj.z > finalZ){
           finalZ = posOnObj.z;
-          color diffuseColor = materials.get(objects.get(i).materialId).getDiffuse(); //color(0.3,0.6,0.1);//
-          color ambientColor = materials.get(objects.get(i).materialId).getAmbient();
-          color reflRayColor = getReflectedRayColor( i, root, org, raydir);
+          color diffuseColor = materials.get(objects.get(i).getMaterialId()).getDiffuse(); //color(0.3,0.6,0.1);//
+          color ambientColor = materials.get(objects.get(i).getMaterialId()).getAmbient();
+          color reflRayColor = getReflectedRayColor( i, root, txOrg, txRaydir);
+          //printlg("refl ray color"+ tostring(reflRayColor));
           pixelColor = mulColors(diffuseColor, reflRayColor);
           pixelColor = addColors(pixelColor,ambientColor);
               
@@ -163,6 +181,7 @@ class raytracer{
           if(hitVal>0){
             //if hit
             hitAnObject = true;
+            //printlg("hit true with obj"+j);
           }
         }
       }
@@ -173,16 +192,33 @@ class raytracer{
           float distance = posOnObj.dist(lights.get(i).pos);
           float intensity = 1;///distance;
           /*if(objId==1){
-            println("root:"+root+" ray:"+ray.x+","+ray.y+","+ray.z);
-            println("posOnObj:"+posOnObj.x+","+posOnObj.y+","+posOnObj.z);
-            println("normal:"+normal.x+","+normal.y+","+normal.z);
-            println("refrRay:"+refrRay.x+","+refrRay.y+","+refrRay.z);
-            println("coeff:"+coeff+",dist:"+distance);
+            printlg("root:"+root+" ray:"+ray.x+","+ray.y+","+ray.z);
+            printlg("posOnObj:"+posOnObj.x+","+posOnObj.y+","+posOnObj.z);
+            printlg("normal:"+normal.x+","+normal.y+","+normal.z);
+            printlg("refrRay:"+refrRay.x+","+refrRay.y+","+refrRay.z);
+            printlg("coeff:"+coeff+",dist:"+distance);
           }*/
           refrRayColor = addColors(refrRayColor,lights.get(i).getColor(),coeff*intensity);
       }
     }
     return refrRayColor;
+  }
+  
+   PVector getRayFromEyeToPixelPos(int x, int y, boolean randomOffset){ 
+     float tx = 0; 
+     float ty = 0;
+     if(randomOffset == true){
+      tx = x + random(1);
+      ty = y + random(1);
+    }else{
+      tx = x + midPixelOffset;
+      ty = y + midPixelOffset;
+    }
+    float x1 = (tx-sw2)*k/sw2;
+    float y1 = (ty-sh2)*(-k)/sh2;
+    
+    PVector ray =  new PVector(x1 - origin.x ,y1 - origin.y ,z1 - origin.z); //x1-x0 (origin) y1-y0 z1-z0 but origin is 0,0,0
+    return ray;
   }
   PVector getRay(int sx, int sy, int sz, int dx, int dy, int dz){
      return new PVector(dx-sx,dy-sy,dz-sz); //destn - src
@@ -196,6 +232,11 @@ class raytracer{
     lights.clear();
     hasLens = false;
     lens = null;
+    
+    CurrentObject = null;
+    NamedObjects.clear();
+    CurrentList.clear();
+    ListStartIndices.clear();
   }
   void clearPixelBuffer(){
     color black = color(0,0,0);
@@ -206,7 +247,7 @@ class raytracer{
     updatePixels();
   }
   void printColor(color c, String t){
-    println(t+" Color val:"+red(c)+","+green(c)+","+blue(c));
+    printlg(t+" Color val:"+red(c)+","+green(c)+","+blue(c));
   }
 }
 raytracer RTracer;
