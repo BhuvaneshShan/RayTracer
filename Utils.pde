@@ -60,3 +60,7 @@ PVector convertColor(color a){
 color convertColor(PVector p){
   return color(p.x,p.y,p.z);
 }
+
+String colorToStr(color c){
+  return "red:"+red(c)+" green:"+green(c)+" blue:"+blue(c);
+}

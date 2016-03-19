@@ -49,7 +49,7 @@ class raytracer{
     }
     //printlg("current object set");
     //objects.add(obj);
-    printlg("object set at "+obj.pos.x+","+obj.pos.y+","+obj.pos.z);
+    printlg("object set at "+obj.pos.x+","+obj.pos.y+","+obj.pos.z+"; Mat id:"+curMaterialId);
   }
   void addMaterial(float r, float g, float b, float ar, float ag, float ab){
     materials.add(new Material(r,g,b,ar,ag,ab));
@@ -94,12 +94,12 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
-        if(x==screen_width/2 && y==screen_height/2){
+       /* if(x==screen_width/2 && y==screen_height/2){
           LOG = true;
         }
         else{
           LOG = false;
-        }
+        }*/
         pixelColVal.set(0,0,0);
         
         if(hasLens == true){
@@ -122,6 +122,7 @@ class raytracer{
             raydir = getRayFromEyeToPixelPos(x,y,randomizeOffset);
             raydir.normalize();
             color pixelColor = intersectsObject(origin, raydir);
+            printlg("pixelColor: "+colorToStr(pixelColor));
             pixelColVal.add(convertColor(pixelColor));
           }
           
@@ -132,76 +133,81 @@ class raytracer{
     updatePixels();
   }
   
+  
   color intersectsObject(PVector org, PVector raydir){
     color pixelColor = bg;
     float finalZ = -MAX_FLOAT;
     for(int i=0;i<objects.size();i++){
-      float root = objects.get(i).isIntersects(org, raydir);
-      if(root>0){ //positive means in the direction of the ray
-        
-        printlg("IsIntersects obj "+i+" root:"+root);
-        
-        PVector txOrg = org;
-        PVector txRaydir = raydir;
-         if( objects.get(i) instanceof Instance){
-           txOrg = ((Instance)objects.get(i)).getInvTransVector(org);
-           txRaydir = ((Instance)objects.get(i)).getAdjointTransVector(raydir);
-           txRaydir.normalize();
-           printlg("is instance");
-         }
-         PVector posOnObj = PVector.add( txOrg, PVector.mult(txRaydir,root));
-         if( posOnObj.z > finalZ){
-          finalZ = posOnObj.z;
-          color diffuseColor = materials.get(objects.get(i).getMaterialId()).getDiffuse(); //color(0.3,0.6,0.1);//
-          color ambientColor = materials.get(objects.get(i).getMaterialId()).getAmbient();
-          color reflRayColor = getReflectedRayColor( i, root, txOrg, txRaydir);
-          //printlg("refl ray color"+ tostring(reflRayColor));
+      CollisionData cData = objects.get(i).isIntersects(org,raydir);
+      if(cData.root > 0){
+        printlg("IsIntersects obj "+i+" root:"+cData.root);
+        printlg("pos on obj:"+cData.posOnObj.toString());
+        printlg("finalz:"+finalZ);
+         if( cData.posOnObj.z > finalZ){
+          printlg("\nchecking");
+          finalZ = cData.posOnObj.z;
+          color diffuseColor = materials.get(cData.materialId).getDiffuse(); //color(0.3,0.6,0.1);//
+          color ambientColor = materials.get(cData.materialId).getAmbient();
+          color reflRayColor = getReflectedRayColor( i, cData);
+          //printlg("diffuse col:" + colorToStr(diffuseColor));
+          //printlg("ambient col:" + colorToStr(ambientColor));
+          //printlg("refl ray color"+ colorToStr(reflRayColor));
           pixelColor = mulColors(diffuseColor, reflRayColor);
           pixelColor = addColors(pixelColor,ambientColor);
-              
+          //printlg("pixel col:" + colorToStr(pixelColor));
         }
       }
     }
+    printlg("pixel col:" + colorToStr(pixelColor));
     return pixelColor;
   }
-  color getReflectedRayColor(int objId, float root, PVector org, PVector raydir){
-    PVector posOnObj = PVector.add(org, PVector.mult(raydir,root));
-    //normal at the position where ray hits object
-    PVector normal = objects.get(objId).getNormal(posOnObj);
-    //initial reflected ray color is black or shadow color
+  
+  color getReflectedRayColor(int objId, CollisionData cData){
     color refrRayColor = color(0,0,0);
     //send ray to all lights
+    printlg("posOnObj:"+cData.posOnObj.toString());
+    printlg("normal:" + cData.normal.toString());
+    printlg("obj pos:" +cData.objPos.toString());
     for(int i=0;i<lights.size();i++){
-      PVector refrRayDir = PVector.sub(lights.get(i).getPos(), posOnObj).normalize();
-      //check if ray hits any object before reaching light
+      //PVector refrRayDir = PVector.sub(lights.get(i).getPos(), cData.posOnObj).normalize();
+      PVector refrRayDir = PVector.sub(cData.posOnObj,lights.get(i).getPos()).normalize(); //cast from light to point not the other way
+      
       boolean hitAnObject=false;
       for(int j=0; j<objects.size(); j++){
-        if(j!=objId){
-          float hitVal = objects.get(j).isIntersects(posOnObj,refrRayDir);
-          if(hitVal>0){
+          //CollisionData hitData = objects.get(j).isIntersects(cData.posOnObj,refrRayDir);
+          CollisionData hitData = objects.get(j).isIntersects(lights.get(i).getPos(),refrRayDir);   //origin is set as light
+          printlg(hitData.root+" hitData:"+hitData.posOnObj.toString());
+          if(hitData.root > 0 && !vectorEquals(hitData.objPos,cData.objPos)){
             //if hit
-            hitAnObject = true;
-            //printlg("hit true with obj"+j);
+            if(hitData.posOnObj.z >= cData.posOnObj.z){
+              hitAnObject = true;
+              printlg("hit an  obj true with obj pos "+hitData.objPos.toString());
+              break;
+            }
           }
-        }
       }
       if(hitAnObject==false){
           //if not hit, then find refrRayColor
-          float coeff = objects.get(objId).dotWithNormal(normal,refrRayDir);
+          PVector reflRayDir = PVector.sub(lights.get(i).getPos(), cData.posOnObj).normalize(); //dir from point to lightsource
+          float coeff = objects.get(objId).dotWithNormal(cData.normal,reflRayDir);
+          printlg("coeff: "+coeff);
           if(coeff<0) coeff = 0;
-          float distance = posOnObj.dist(lights.get(i).pos);
+          float distance = cData.posOnObj.dist(lights.get(i).pos);
           float intensity = 1;///distance;
-          /*if(objId==1){
-            printlg("root:"+root+" ray:"+ray.x+","+ray.y+","+ray.z);
-            printlg("posOnObj:"+posOnObj.x+","+posOnObj.y+","+posOnObj.z);
-            printlg("normal:"+normal.x+","+normal.y+","+normal.z);
-            printlg("refrRay:"+refrRay.x+","+refrRay.y+","+refrRay.z);
-            printlg("coeff:"+coeff+",dist:"+distance);
-          }*/
+         
           refrRayColor = addColors(refrRayColor,lights.get(i).getColor(),coeff*intensity);
+          printlg("refr Ray color: "+colorToStr(refrRayColor));
       }
     }
+    printlg("refr Ray color: "+colorToStr(refrRayColor));
     return refrRayColor;
+  }
+  
+  boolean vectorEquals(PVector one, PVector two){
+    if(one.x == two.x && one.y == two.y && one.z == two.z)
+      return true;
+    else
+      return false;
   }
   
    PVector getRayFromEyeToPixelPos(int x, int y, boolean randomOffset){ 

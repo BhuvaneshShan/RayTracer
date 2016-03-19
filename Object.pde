@@ -18,16 +18,9 @@ abstract class Object{
     this.materialId = obj.materialId;
     
   }
-  /*void setTransMatrix(PMatrix3D topOfStack){
-    printlg("SetTransMat:");
-    topOfStack.print();
-    invTransMatrix = topOfStack.get();
-    invTransMatrix.invert();
-    invTransMatrix.print();
-  }*/
   
   abstract void assignMaterial(int id);
-  abstract float isIntersects(PVector rayorigin, PVector raydir);
+  abstract CollisionData isIntersects(PVector rayorigin, PVector raydir);
   abstract PVector getNormal(PVector posOnObj);
   abstract float dotWithNormal(PVector norm, PVector refrdir);
   abstract int  getMaterialId();
@@ -62,9 +55,6 @@ class Instance extends Object{
   }
   
   PVector getTransformedVector(PVector vector){
-    //PVector transformed = new PVector();
-    //invTransMatrix.mult(vector,transformed);
-    //return transformed;
     float[] gmat = new float[16];
     invTransMatrix.get(gmat);
     PVector fin = new PVector(vector.x + gmat[3], vector.y + gmat[7], vector.z + gmat[11]);
@@ -88,7 +78,7 @@ class Instance extends Object{
     PVector fin = new PVector(vector.x * gmat[0], vector.y * gmat[5], vector.z * gmat[10]);
     return fin;
   }
-  float isIntersects(PVector rayorigin, PVector raydir){
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
     PVector rayOrg = getInvTransVector(rayorigin);
     PVector rayDir = getAdjointTransVector(raydir);
     rayDir.normalize();
@@ -121,9 +111,11 @@ class Sphere extends Object{
     super(s);
     this.radius = s.radius;
   }
-  float isIntersects(PVector rayorigin, PVector raydir){
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
     //printlg("Sphre ray Origin:"+rayorigin.x+","+rayorigin.y+","+rayorigin.z);
     //printlg("Sphre Trans Origin:"+txrayorigin.x+","+txrayorigin.y+","+txrayorigin.z);
+    CollisionData cObj = new CollisionData();
+    cObj.objPos = this.pos;
     PVector tcenter = PVector.sub(pos,rayorigin);
     float a = raydir.x*raydir.x + raydir.y*raydir.y + raydir.z*raydir.z;
     float b = -2*(raydir.x*tcenter.x+raydir.y*tcenter.y+raydir.z*tcenter.z);
@@ -134,11 +126,18 @@ class Sphere extends Object{
       float t1 = (-b + sqrt(d))/2*a ;
       float t2 = (-b - sqrt(d))/2*a ;
       //if(t2<0) return t1;
-       if(t1<t2) return t1;
-      else return t2;
+       if(t1<t2){ 
+         cObj.root =  t1;
+       }else{
+         cObj.root = t2;
+       }
     }else{
-      return 0.0;
+      cObj.root = 0.0;
     }
+    cObj.posOnObj =  PVector.add(rayorigin, PVector.mult(raydir,cObj.root));
+    cObj.normal = PVector.sub(cObj.posOnObj,pos).normalize();
+    cObj.materialId = this.materialId;
+    return cObj;
   }
   void assignMaterial(int id){
     materialId = id;
@@ -186,7 +185,10 @@ class MovingSphere extends Object{
     //time is expected to be between 0.0 and 1.0
     return PVector.add(startPos,PVector.mult(movingDir,time));
   }
-  float isIntersects(PVector rayorigin, PVector raydir){
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
+    CollisionData cObj = new CollisionData();
+    cObj.objPos = this.pos;
+    
     float time = random(1);
     curRandomizedTime = time;
     PVector tcenter = PVector.sub( getPos(time), rayorigin);
@@ -199,11 +201,18 @@ class MovingSphere extends Object{
       float t1 = (-b + sqrt(d))/2*a ;
       float t2 = (-b - sqrt(d))/2*a ;
       //if(t2<0) return t1;
-       if(t1<t2) return t1;
-      else return t2;
+       if(t1<t2){ 
+         cObj.root =  t1;
+       }else{
+         cObj.root = t2;
+       }
     }else{
-      return 0.0;
-    }   
+      cObj.root = 0.0;
+    }
+    cObj.posOnObj =  PVector.add(rayorigin, PVector.mult(raydir,cObj.root));
+    cObj.normal = PVector.sub(cObj.posOnObj,pos).normalize();
+    cObj.materialId = this.materialId;
+    return cObj; 
   }
   void assignMaterial(int id){
     materialId = id;
@@ -268,27 +277,42 @@ class Triangle extends Object{
     return coeff;
   }
   float nearzero = 0.000001;
-  float isIntersects(PVector rayorigin, PVector raydir){
+  
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
+    CollisionData cObj = new CollisionData();
+    cObj.objPos = this.pos;
+    cObj.materialId = this.materialId;
+    
     PVector vecA = PVector.sub(vertices.get(1),vertices.get(0));
     PVector vecB = PVector.sub(vertices.get(2),vertices.get(0));
     PVector p = raydir.cross(vecB);
     float det = PVector.dot(vecA,p);
-    if( det>-nearzero && det<nearzero)
-      return 0;
+    if( det>-nearzero && det<nearzero){
+      cObj.root = 0;
+      return cObj;
+    }
     float invdet = 1.f/det;
     PVector t = PVector.sub(rayorigin,vertices.get(0));
     float u = PVector.dot(t,p)*invdet;
-    if( u<0.f || u>1.f)
-      return 0;
+    if( u<0.f || u>1.f){
+      cObj.root = 0;
+      return cObj;
+    }
     PVector q = t.cross(vecA);
     float v = PVector.dot(raydir,q)*invdet;
-    if(v<0.f || u+v > 1.f)
-      return 0;
+    if(v<0.f || u+v > 1.f){
+      cObj.root = 0;
+      return cObj;
+    }
     float root = PVector.dot(vecB,q)*invdet;
     if(root>nearzero){
-      return root;
+      cObj.root = root;
+      cObj.posOnObj =  PVector.add(rayorigin, PVector.mult(raydir,cObj.root));
+      cObj.normal = getNormal(cObj.posOnObj);
+      return cObj;
     }
-    return 0;
+      cObj.root = 0;
+      return cObj;
   }
   
   PVector getMinBounds(){
@@ -321,62 +345,6 @@ class Triangle extends Object{
   
   boolean isWithinTriangle(PVector point){
     return false;
-    /*
-    PVector ab = PVector.sub(this.vertices.get(1),this.vertices.get(0));
-    PVector ac = PVector.sub(this.vertices.get(2),this.vertices.get(0));
-    PVector ap = PVector.sub(point,this.vertices.get(0));
-    float del = ab.x*ac.y - ab.y*ac.x;
-    float delx = ap.x*ac.y - ap.y*ac.x;
-    float dely = ab.x*ap.y - ab.y*ap.x;
-    float x = delx/del;
-    float y = dely/del;
-    if(RTracer.tx>280 && RTracer.ty>280)
-      printlg("hit "+RTracer.tx+","+RTracer.ty+" point:"+point.x+","+point.y+","+point.z+" with vals:"+x+":"+y);
-      
-    if(x>=0 && y>=0 && (x+y)<=1)
-      return true;
-    else 
-      return false;
-    */
-    /*
-    PVector u = PVector.sub(this.vertices.get(1),this.vertices.get(0));
-    PVector v = PVector.sub(this.vertices.get(2),this.vertices.get(0));
-    PVector w = PVector.sub(point,this.vertices.get(0));
-    //w = w.normalize();
-    //u = u.normalize();
-    //v = v.normalize();
-    PVector n = u.cross(v);
-    float nsq = sqrt(sq(n.x)+sq(n.y)+sq(n.z));
-    float gamma = (u.cross(w).dot(n))/nsq;
-    float beta = (w.cross(v).dot(n))/nsq;
-    float alpha = 1 - gamma - beta;
-    if(alpha>=0 && alpha<=1 && beta>=0 && beta<=1 && gamma>=0 && gamma<=1)
-      return true;
-    else 
-      return false;
-      */
-    /*
-    PVector AB = PVector.sub(this.vertices.get(1),this.vertices.get(0));
-    PVector AP = PVector.sub(point,this.vertices.get(0));
-    PVector BC = PVector.sub(this.vertices.get(2),this.vertices.get(1));
-    PVector BP = PVector.sub(point,this.vertices.get(1));
-    PVector CA = PVector.sub(this.vertices.get(0),this.vertices.get(2));
-    PVector CP = PVector.sub(point,this.vertices.get(2));
-    PVector abxap = AB.cross(AP);
-    PVector bcxbp = BC.cross(BP);
-    PVector caxcp = CA.cross(CP);
-    //if(RTracer.tx>280 && RTracer.ty>280)
-    //  printlg("hit "+RTracer.tx+","+RTracer.ty+" point:"+point.x+","+point.y+","+point.z+" with vals:"+abxap.z+":"+bcxbp.z+":"+caxcp.z);
-      
-    if( abxap.z>0 && bcxbp.z>0 && caxcp.z>0 )
-      return true;
-    else if( abxap.z<0 && bcxbp.z<0 && caxcp.z<0 )
-      return true;
-    //else if(abxap.z==0 && bcxbp.z==0 && caxcp.z==0 )
-    //  return true;
-    else
-      return false;
-    */
   }
 }
 
@@ -410,8 +378,8 @@ class Polygon extends Object{
     float coeff = normal.dot(ray);
     return coeff;
   }
-  float isIntersects(PVector rayorigin, PVector raydir){
-    return 0;
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
+    return new CollisionData();
   }
   PVector getMinBounds(){
     PVector min = new PVector(MAX_FLOAT, MAX_FLOAT, MAX_FLOAT);
@@ -460,7 +428,7 @@ class Box extends Object{
     this.min = obj.getMinBounds();
     this.max = obj.getMaxBounds();
   }
-  float isIntersects(PVector rayorigin, PVector raydir){
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
      return intersect(rayorigin, raydir);
     //get intersection
     /*PVector frontPlane = new PVector(0,0,max.z);
@@ -520,14 +488,14 @@ class Box extends Object{
     }
     return 0.0;
   }*/
-  float intersect(PVector rayorg, PVector raydir){
+  CollisionData intersect(PVector rayorg, PVector raydir){
     float tnear = -MAX_FLOAT;
     float tfar = MAX_FLOAT;
     //X planes
     if(raydir.x==0){
       //ray parallel to plane
       if(!isWithin(min.x,rayorg.x,max.x)){
-        return 0.0;
+        return new CollisionData();
       }
     }else{
       //ray not parallel to plane
@@ -536,15 +504,15 @@ class Box extends Object{
       if(t1>t2){ float temp = t1; t1 = t2; t2 = temp; }
       if(t1 > tnear) {tnear = t1;}
       if(t2 < tfar) {tfar = t2;}
-      if(tnear>tfar){return 0.0;}
-      if(tfar<0){return 0.0;}
+      if(tnear>tfar){return new CollisionData();}
+      if(tfar<0){return new CollisionData();}
     }
     
     //Y planes
     if(raydir.y==0){
       //ray parallel to plane
       if(!isWithin(min.y,rayorg.y,max.y)){
-        return 0.0;
+        return new CollisionData();
       }
     }else{
       //ray not parallel to plane
@@ -553,15 +521,15 @@ class Box extends Object{
       if(t1>t2){ float temp = t1; t1 = t2; t2 = temp; }
       if(t1 > tnear) {tnear = t1;}
       if(t2 < tfar) {tfar = t2;}
-      if(tnear>tfar){return 0.0;}
-      if(tfar<0){return 0.0;}
+      if(tnear>tfar){return new CollisionData();}
+      if(tfar<0){return new CollisionData();}
     }
      
     //Z planes
     if(raydir.z==0){
       //ray parallel to plane
       if(!isWithin(min.z,rayorg.z,max.z)){
-        return 0.0;
+        return new CollisionData();
       }
     }else{
       //ray not parallel to plane
@@ -570,10 +538,15 @@ class Box extends Object{
       if(t1>t2){ float temp = t1; t1 = t2; t2 = temp; }
       if(t1 > tnear) {tnear = t1;}
       if(t2 < tfar) {tfar = t2;}
-      if(tnear>tfar){return 0.0;}
-      if(tfar<0){return 0.0;}
+      if(tnear>tfar){return new CollisionData();}
+      if(tfar<0){return new CollisionData();}
     }
-    return tnear;
+    CollisionData cdata = new CollisionData();
+    cdata.root = tnear;
+    cdata.posOnObj =  PVector.add(rayorg, PVector.mult(raydir,cdata.root));
+    cdata.normal = getNormal(cdata.posOnObj);
+    cdata.materialId = this.materialId;
+    return cdata;
   }
   
   PVector getMinBounds(){
@@ -623,7 +596,7 @@ class Box extends Object{
     PVector bottomRight = new PVector(min.x,min.y,max.z);
     PVector bottomLeft = new PVector(max.x,min.y,max.z);
     PVector topRight = new PVector(max.x,max.y,max.z);
-    return PVector.sub(topRight,bottomRight).cross(PVector.sub(bottomRight,bottomLeft));
+    return (PVector.sub(topRight,bottomRight).cross(PVector.sub(bottomRight,bottomLeft))).normalize();
   }
   float dotWithNormal(PVector norm, PVector ray){
     return norm.dot(ray);
@@ -664,23 +637,28 @@ class ObjList extends Object{
       this.pos.z = (this.pos.z + obj.pos.z)/2;
     }
   }
-  float isIntersects(PVector rayorigin, PVector raydir){
-    if(objects.size() >0 && boundingBox.isIntersects(rayorigin,raydir)>0){
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
+    if(objects.size() >0 && boundingBox.isIntersects(rayorigin,raydir).root>0){
+      CollisionData cdata = new CollisionData();
+      
       float minroot = MAX_FLOAT;
+      
       for(int i=0;i<objects.size();i++){
-        float root = objects.get(i).isIntersects(rayorigin, raydir);
-        if(root>0 && root<minroot){
-          minroot = root;
-          curMaterialId = objects.get(i).getMaterialId();
+        CollisionData temp = objects.get(i).isIntersects(rayorigin, raydir);
+        if(temp.root>0 && temp.root<minroot){
+          minroot = temp.root;
+          cdata = temp;
+          /*curMaterialId = objects.get(i).getMaterialId();
           curNormal = objects.get(i).getNormal(PVector.add(rayorigin, PVector.mult(raydir,root)));
+          */
         }
       }
       if(minroot == MAX_FLOAT)
-        return 0.0;
+        return new CollisionData();
       else
-        return minroot;
+        return cdata;
     }
-    return 0.0;
+    return new CollisionData();
   }
   PVector getMinBounds(){
     return boundingBox.getMinBounds();
@@ -696,6 +674,10 @@ class ObjList extends Object{
   }
   float dotWithNormal(PVector norm, PVector ray){
     float coeff = norm.dot(ray);
+    if(coeff<0){
+      norm = norm.mult(-1);
+      return norm.dot(ray);
+    }
     return coeff;
   }
   int getMaterialId(){

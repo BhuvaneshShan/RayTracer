@@ -96,3 +96,25 @@ class Lens{
     return C;
   }
 }
+
+class CollisionData{
+  float root = 0;
+  PVector normal;
+  PVector posOnObj;
+  PVector objPos;
+  int materialId;
+  CollisionData(float troot, PVector tnormal, PVector tposOnObj, PVector tObjPos, int tmatId){
+    root = troot;
+    normal = tnormal;
+    posOnObj = tposOnObj;
+    objPos = tObjPos;
+    materialId = tmatId;
+  }
+  CollisionData(){
+    root = 0;
+    materialId = 0;
+    normal = new PVector(0,0,0);
+    posOnObj = new PVector(0,0,0);
+    objPos = new PVector(0,0,0);
+  }
+}

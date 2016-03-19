@@ -266,4 +266,5 @@ void instantiate(){
   NamedObjects = new HashMap<String, Object>();
   CurrentList = new ArrayList<Object>();
   ListStartIndices = new Stack();
+  LOG = false;
 }

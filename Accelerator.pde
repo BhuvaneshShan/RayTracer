@@ -137,31 +137,31 @@ class Accelerator extends Object{
     this.materialId = id;
   }
   
-  float isIntersects(PVector rayorigin, PVector raydir){
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
     if(left==null && right==null){
       return node.isIntersects(rayorigin, raydir);
     }else {
-      if(node.isIntersects(rayorigin, raydir)!=0){
-        float leftroot = left.isIntersects(rayorigin, raydir);
-        float rightroot = right.isIntersects(rayorigin, raydir);
-        if(leftroot!=0 && rightroot!=0){
-          if(leftroot<rightroot){
+      if(node.isIntersects(rayorigin, raydir).root != 0){
+        CollisionData leftcdata = left.isIntersects(rayorigin, raydir);
+        CollisionData rightcdata = right.isIntersects(rayorigin, raydir);
+        if(leftcdata.root!=0 && rightcdata.root!=0){
+          if(leftcdata.root<rightcdata.root){
             hitItemSide = -1;
-            return leftroot;
+            return leftcdata;
           }else{
             hitItemSide = 1;
-            return rightroot;
+            return rightcdata;
           }
-        }else if(leftroot!=0){
+        }else if(leftcdata.root!=0){
           hitItemSide = -1;
-          return leftroot;
+          return leftcdata;
         }else{
           hitItemSide = 1;
-          return rightroot;
+          return rightcdata;
         }
       }else{
         hitItemSide = 0;
-        return 0.0;
+        return new CollisionData();
       }
     }
   }
@@ -181,7 +181,12 @@ class Accelerator extends Object{
   }
   
   float dotWithNormal(PVector norm, PVector ray){
-    return norm.dot(ray);
+    float coeff = norm.dot(ray);
+    if(coeff<0){
+      norm = norm.mult(-1);
+      return norm.dot(ray);
+    }
+    return coeff;
   }
   
   int  getMaterialId(){
