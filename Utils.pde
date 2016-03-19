@@ -64,3 +64,39 @@ color convertColor(PVector p){
 String colorToStr(color c){
   return "red:"+red(c)+" green:"+green(c)+" blue:"+blue(c);
 }
+
+public class CustomComparator implements Comparator<Object> {
+    public int sortType = 0;
+   
+    CustomComparator(int type){
+      super();
+      sortType = type;
+    }
+    @Override
+    public int compare(Object o1, Object o2) {
+      switch(sortType){
+        case 0:
+           if(o1.pos.x>o2.pos.x)
+             return 1;
+           else if(o1.pos.x<o2.pos.x)
+             return -1;
+           else
+             return 0;
+        case 1:
+          if(o1.pos.y>o2.pos.y)
+             return 1;
+           else if(o1.pos.y<o2.pos.y)
+             return -1;
+           else
+             return 0;
+        case 2:
+          if(o1.pos.z>o2.pos.z)
+             return 1;
+           else if(o1.pos.z<o2.pos.z)
+             return -1;
+           else
+             return 0;
+      }
+      return 0;
+    }
+}

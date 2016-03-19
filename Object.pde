@@ -350,6 +350,7 @@ class Triangle extends Object{
 
 
 
+
 class Polygon extends Object{
   ArrayList<PVector> vertices;
   PVector normal;
@@ -409,6 +410,7 @@ class Polygon extends Object{
     return materialId;
   }
 }
+
 
 class Box extends Object{
   PVector min;
@@ -599,7 +601,12 @@ class Box extends Object{
     return (PVector.sub(topRight,bottomRight).cross(PVector.sub(bottomRight,bottomLeft))).normalize();
   }
   float dotWithNormal(PVector norm, PVector ray){
-    return norm.dot(ray);
+    float coeff = norm.dot(ray);
+    if(coeff<0){
+      norm = norm.mult(-1);
+      return norm.dot(ray);
+    }
+    return coeff;
   }
    int getMaterialId(){
     return materialId;
@@ -684,8 +691,6 @@ class ObjList extends Object{
     return curMaterialId;
   }
 }
-
-
 
 Object getInstanceOf(Object obj){
   if(obj instanceof Sphere){

@@ -96,6 +96,7 @@ void interpreter(String filename) {
     }
     else if(token[0].equals("named_object")){
       NamedObjects.put(token[1], CurrentObject);
+      //CurrentObject = null;
     }
     else if(token[0].equals("instance")){
       println("top of stack:");
@@ -170,6 +171,7 @@ void interpreter(String filename) {
       CurrentList.subList(recentListStartIndex+1, CurrentList.size()).clear();
       if(recentListStartIndex == 0){
         RTracer.addToScene(CurrentList.get(0));
+        //CurrentObject = CurrentList.get(0);
         AddToList = false;
         CurrentList.clear();
         ListStartIndices.clear();
@@ -229,6 +231,7 @@ void interpreter(String filename) {
       println("timer = " + seconds);
     }
     else if (token[0].equals("write")) {
+      
       restoreMatrix();
       println("Rendering...");
       RTracer.rayTrace();

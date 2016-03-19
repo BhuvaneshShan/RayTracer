@@ -1,0 +1,93 @@
+# multiple bunnies
+
+fov 60
+
+# blue background
+
+background 0.2 0.2 1
+
+# light sources 
+
+point_light  2 5 0  .8 .8 .8
+point_light -3 4 0  .2 .2 .2
+
+# these two triangles acts as a ground plane
+
+diffuse  .8 .8 .8  .2 .2 .2
+
+begin
+vertex -100 -1 -100
+vertex  100 -1 -100
+vertex  100 -1  100
+end
+
+begin
+vertex  100 -1  100
+vertex -100 -1  100
+vertex -100 -1 -100
+end
+
+# the bunnies 
+
+diffuse  .2 .4 .8  .2 .2 .2
+
+push
+translate -1.5 0 -5
+
+begin_list
+read bun69k.cli
+end_accel
+
+pop
+
+diffuse  .4 .8 .2  .2 .2 .2
+
+push
+translate 1.5 0 -5
+
+begin_list
+read bun69k.cli
+end_accel
+
+pop
+
+diffuse  .8 .4 .2  .2 .2 .2
+
+push
+translate 0 0 -8
+
+begin_list
+read bun69k.cli
+end_accel
+
+pop
+
+# the bunnies 
+
+diffuse  .4 .8 .2  .2 .2 .2
+
+push
+translate -6 0 -10
+
+begin_list
+read bun69k.cli
+end_accel
+
+pop
+
+
+diffuse  .2 .4 .8  .2 .2 .2
+
+push
+translate 6 0 -10
+
+begin_list
+read bun69k.cli
+end_accel
+
+pop
+
+
+reset_timer
+write t10.png
+print_timer

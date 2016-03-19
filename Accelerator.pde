@@ -30,6 +30,9 @@ class Accelerator extends Object{
     else{
       level = tlevel;
       hitItemSide = 0;
+      
+      //Collections.sort(objs, new CustomComparator(level%3));
+      
       Box bbox = new Box(objs.get(0));
       PVector centroid = new PVector(objs.get(0).pos.x, objs.get(0).pos.y, objs.get(0).pos.z);
       for(int i=1;i<objs.size();i++){
