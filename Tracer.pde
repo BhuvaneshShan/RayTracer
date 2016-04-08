@@ -46,6 +46,8 @@ class raytracer{
       CurrentList.add(obj);
     }else{
       CurrentObject = obj;
+      //objects.add(obj);
+      addToScene(obj);
     }
     //printlg("current object set");
     //objects.add(obj);
@@ -55,6 +57,19 @@ class raytracer{
     materials.add(new Material(r,g,b,ar,ag,ab));
     curMaterialId=materials.size()-1;
     printlg("material added");
+  }
+  void addNoiseToMaterial(int scale){
+    materials.get(curMaterialId).setToNoise(scale);
+  }
+  void setCurMaterial(TextureType t){
+    if(t == TextureType.WOOD){
+      materials.get(curMaterialId).setToWood();
+      println("wood texture set to material");
+    }
+    else if(t == TextureType.MARBLE)
+      materials.get(curMaterialId).setToMarble();
+    else if(t == TextureType.STONE)
+      materials.get(curMaterialId).setToStone();
   }
   void addToScene(String instanceName, PMatrix3D topOfStack){
     Object instance = new Instance(topOfStack,NamedObjects.get(instanceName));
@@ -79,6 +94,7 @@ class raytracer{
   }
   
   void rayTrace(){
+    LOG = false;
     loadPixels();
     
     PVector raydir = new PVector();
@@ -146,7 +162,7 @@ class raytracer{
          if( cData.posOnObj.z > finalZ){
           printlg("\nchecking");
           finalZ = cData.posOnObj.z;
-          color diffuseColor = materials.get(cData.materialId).getDiffuse(); //color(0.3,0.6,0.1);//
+          color diffuseColor = materials.get(cData.materialId).getDiffuse(cData.posOnObj.x, cData.posOnObj.y, cData.posOnObj.z, cData.objPos); //color(0.3,0.6,0.1);//
           color ambientColor = materials.get(cData.materialId).getAmbient();
           color reflRayColor = getReflectedRayColor( i, cData);
           //printlg("diffuse col:" + colorToStr(diffuseColor));

@@ -5,8 +5,8 @@
 ///////////////////////////////////////////////////////////////////////
 import java.util.*;
 
-int screen_width = 300;
-int screen_height = 300;
+int screen_width = 600;
+int screen_height = 600;
 
 // global matrix values
 PMatrix3D global_mat;
@@ -15,7 +15,7 @@ float[] gmat = new float[16];  // global matrix values
 // Some initializations for the scene.
 
 void setup() {
-  size (300, 300, P3D);  // use P3D environment so that matrix commands work properly
+  size (600, 600, P3D);  // use P3D environment so that matrix commands work properly
   noStroke();
   colorMode (RGB, 1.0);
   background (0, 0, 0);
@@ -32,7 +32,7 @@ void setup() {
   printMatrix();
   RTracer = new raytracer();
   RTracer.reset();
-  interpreter("t01.cli");
+  interpreter("t04.cli");
 }
 
 // Press key 1 to 9 and 0 to run different test cases.
@@ -93,6 +93,18 @@ void interpreter(String filename) {
      }
     else if (token[0].equals("diffuse")) {
       RTracer.addMaterial(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]));
+    }
+    else if (token[0].equals("noise")){
+      RTracer.addNoiseToMaterial(int(token[1]));
+    }
+    else if (token[0].equals("wood")){
+      RTracer.setCurMaterial(TextureType.WOOD);
+    }
+    else if (token[0].equals("marble")){
+      RTracer.setCurMaterial(TextureType.MARBLE);
+    }
+    else if (token[0].equals("stone")){
+      RTracer.setCurMaterial(TextureType.STONE);
     }
     else if(token[0].equals("named_object")){
       NamedObjects.put(token[1], CurrentObject);
@@ -269,5 +281,5 @@ void instantiate(){
   NamedObjects = new HashMap<String, Object>();
   CurrentList = new ArrayList<Object>();
   ListStartIndices = new Stack();
-  LOG = false;
+  LOG = true;
 }

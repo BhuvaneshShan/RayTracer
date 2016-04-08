@@ -1,16 +1,171 @@
-
+enum TextureType{ NONE, NOISE, WOOD, MARBLE, STONE};
+  
 class Material{
   color diffuse;
   color ambient;
+  
+  boolean hasNoise = false;
+  int noiseScale = 0;
+  
+  TextureType texType;
+  
   Material(float tr, float tg, float tb, float ar, float ag, float ab){
     diffuse = color(tr,tg,tb);
     ambient = color(ar,ag,ab);
+    texType = TextureType.NONE;
   }
   color getDiffuse(){
     return diffuse;
   }
+  color getDiffuse(float x, float y, float z, PVector pos){
+    if(texType == TextureType.NOISE){
+      float noiseVal = noise_3d(noiseScale * x,noiseScale * y,noiseScale * z);
+      noiseVal = (noiseVal+1)/2;
+      return mulColor(diffuse, noiseVal);
+    }else if(texType == TextureType.WOOD){
+      return getWoodTexel(x,y,z, pos);
+    }else if(texType == TextureType.MARBLE){
+      return getMarbleTexel(x,y,z);
+    }else if(texType == TextureType.STONE){
+      return getStoneTexel(x,y,z);
+    }else{
+      return diffuse;
+    }
+  }
   color getAmbient(){
     return ambient;
+  }
+  void setToNoise(int scale){
+    texType = TextureType.NOISE;
+    noiseScale = scale;
+  }
+  void setToWood(){
+     texType = TextureType.WOOD;
+  }
+  void setToMarble(){
+     texType = TextureType.MARBLE;
+  }
+  void setToStone(){
+     texType = TextureType.STONE;
+  }
+  
+  int calcNumberOfFeatures(float p){
+    if(p<0.2)
+      return 1;
+    else if(p<0.4)
+      return 2;
+    else if(p<0.6)
+      return 3;
+    else if(p<0.8)
+      return 4;
+    else 
+      return 5;
+  }
+  PVector getFeaturePoint(int cx, int cy, int cz){
+    return new PVector(cx+random(1),cy+random(1), cz+random(1));
+  }
+  color getStoneTexel(float x, float y, float z){
+    color stoneColor = color(0.149,0.772,0.988);
+    int seedscale = 10;
+    float dist1 = 9999; float dist2 = 9999;
+    float cellSize = 1.7;      
+    x = x*cellSize;
+    y = y*cellSize;
+    z = z*cellSize;
+    int ecx = fastfloor(x); int ecy = fastfloor(y); int ecz = fastfloor(z);
+    for(int i=-1; i<2; i++){
+      for(int j=-1; j<2; j++){
+        for(int k=-1; k<2; k++){
+          int cx = ecx+i; int cy = ecy +j; int cz = ecz + k;
+          int seed = int(3728377 * (1+noise_3d(seedscale*cx, seedscale*cy, seedscale*cz)));
+          randomSeed(seed);
+          float probability = random(1);
+          int numOfFeaturePoints = calcNumberOfFeatures(probability);
+          for(int l=0;l<numOfFeaturePoints; l++){
+            PVector fp = getFeaturePoint(cx,cy,cz);
+            float dist = sqrt((x-fp.x)*(x-fp.x) + (y-fp.y)*(y-fp.y) + (z-fp.z)*(z-fp.z));
+            if(dist < dist1){
+              dist2 = dist1;
+              dist1 = dist;
+            }else if(dist<dist2){
+              dist2 = dist;
+            }
+          }      
+        }
+      }
+    }
+    float inLine = (dist2 - dist1)/dist2;
+    if(inLine>0.1){
+      return stoneColor;
+    }
+    else{
+      return diffuse;
+    }
+  }
+  
+  float turbulence(float x,float y,float z){
+    float t = 0;
+    float scale = 10;
+    float initScale = scale;
+    while(scale >= 1){
+      t += noise_3d(x/scale,y/scale,z/scale)*scale;
+      scale = scale/2;
+    }
+    return t/initScale;
+  }
+  
+  color getMarbleTexel(float x, float y, float z){
+     color light = color(0.83, 0.95, 0.75);
+     color dark = color(0.1, 0.52, 0);
+     
+     int scale = 10;
+     float noiseVal =  2*noise_3d(scale * x,scale * y,scale * z);
+     int scale2 = 20;
+     float noiseVal2 = 0.5*noise_3d(scale2 * x,scale2 * y,scale2 * z);
+     int scale3 = 3;
+     float noiseVal3 = 4*noise_3d(scale3 * x,scale3 * y,scale3 * z);
+     
+     x = x*20 + y*10 + 2*turbulence(x,y,z);
+     x = x +noiseVal+noiseVal2+noiseVal3;
+     float inLine = (1+sin(x))/2;
+     color front = interpolateColors(light, inLine, dark);
+     
+     return front; 
+  }
+  
+  color getWoodTexel(float x, float y, float z, PVector pos){
+      /*
+      int scale = 20;
+      float noiseVal = noise_3d(scale * x, scale * y, scale * z);
+      noiseVal = (noiseVal+1)/2;
+      noiseVal = noiseVal * scale;
+      float grain = noiseVal - int(noiseVal);
+      return mulColor(diffuse, noiseVal);
+      */
+      color light = color(0.91, 0.65, 0.35);
+      color dark = color(0.54, 0.31, 0.05);
+      color brown = color(0.8, 0.4, 0);
+      
+      
+      
+      y = y - pos.y ;
+      z = z - pos.z ;
+      float dist = sqrt(y*y + z*z);
+      dist = dist * 80;
+      
+      int scale = 5;
+      float noiseVal = noise_3d(scale * x,scale * y,scale * z);
+      //noiseVal = (noiseVal+1)/2;
+      //int scale2 = 7;
+      //float noiseVal2 = 1+noise_3d(scale2 * x,scale2 * y,scale2 * z);
+      dist = dist + noiseVal; //+ noiseVal2;
+      
+      float onLine = (1+sin(dist))*0.5;
+      if(onLine<0.45)
+        return light;
+      else
+        return dark;
+      //return interpolateColors(light, onLine, dark);
   }
 }
 
