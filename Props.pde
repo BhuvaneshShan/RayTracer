@@ -78,6 +78,7 @@ class Material{
     z = z*cellSize;
     
     PVector nfp = new PVector(); //nearest feature point
+    
     int ecx = fastfloor(x); int ecy = fastfloor(y); int ecz = fastfloor(z);
     for(int i=-1; i<2; i++){
       for(int j=-1; j<2; j++){
@@ -104,6 +105,7 @@ class Material{
     float inLine = (dist2 - dist1)/dist2;
     if(inLine>0.08){
       //inside cells
+      
       int scale = 5;
       float noiseVal = noise_3d(scale * x,scale * y,scale * z);
       noiseVal = (noiseVal+1)/2;
@@ -111,11 +113,12 @@ class Material{
       
       randomSeed(int(nfp.x*232+nfp.y*173837+nfp.z*372327));
       //color sc = color(red(stoneColor)+random(-0.25,0.1),green(stoneColor)+random(-0.25,0.1),blue(stoneColor)+random(-0.5,0.1));
-      color sc = color(red(stoneColor)+random(-0.5,0.1),green(stoneColor)+random(-0.25,0.1),blue(stoneColor)+random(-0.25,0.1));
+      color sc = color(red(stoneColor)+random(-0.35,0.1),green(stoneColor)+random(-0.2,0.1),blue(stoneColor)+random(-0.2,0.1));
       return mulColor(sc,noiseVal);
     }
     else{
       //outside cells or in cement
+      
       int scale = 40;
       float noiseVal = noise_3d(scale * x,scale * y,scale * z);
       noiseVal = (noiseVal+1)/2;
@@ -136,8 +139,12 @@ class Material{
   }
   
   color getMarbleTexel(float x, float y, float z){
-     color light = color(0.83, 0.95, 0.75);
-     color dark = color(0.1, 0.52, 0);
+     //color light = color(0.83, 0.95, 0.75);
+     color light = color( 0.94, 0.99, 0.94);
+     color dark = color(0, 0.30, 0.03);
+     //color dark = color(0.51, 0.09, 0.33);
+     //color dark = color(0.35, 0.01, 0.18);
+     //color dark = color(0.38, 0.05, 0.55);
      
      int scale = 10;
      float noiseVal =  2*noise_3d(scale * x,scale * y,scale * z);
@@ -146,9 +153,10 @@ class Material{
      int scale3 = 3;
      float noiseVal3 = 4*noise_3d(scale3 * x,scale3 * y,scale3 * z);
      
-     x = x*20 + y*10 + 2*turbulence(x,y,z);
-     x = x +noiseVal+noiseVal2+noiseVal3;
-     float inLine = (1+sin(x))/2;
+     float param = x*13  + 2*turbulence(x,y,z);
+     param = param + noiseVal + noiseVal2 + noiseVal3;
+     
+     float inLine = (1+sin(param))/2;
      color front = interpolateColors(light, inLine, dark);
      
      return front; 
