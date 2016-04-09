@@ -61,17 +61,23 @@ class Material{
     else 
       return 5;
   }
+  
   PVector getFeaturePoint(int cx, int cy, int cz){
     return new PVector(cx+random(1),cy+random(1), cz+random(1));
   }
+  
   color getStoneTexel(float x, float y, float z){
-    color stoneColor = color(0.149,0.772,0.988);
+    //color stoneColor = color(0.149,0.772,0.988);
+    color stoneColor = color(0.98,0.41,0.14);
     int seedscale = 10;
     float dist1 = 9999; float dist2 = 9999;
-    float cellSize = 1.7;      
+    float cellSize = 1.73;      
+    
     x = x*cellSize;
     y = y*cellSize;
     z = z*cellSize;
+    
+    PVector nfp = new PVector(); //nearest feature point
     int ecx = fastfloor(x); int ecy = fastfloor(y); int ecz = fastfloor(z);
     for(int i=-1; i<2; i++){
       for(int j=-1; j<2; j++){
@@ -87,6 +93,7 @@ class Material{
             if(dist < dist1){
               dist2 = dist1;
               dist1 = dist;
+              nfp = fp;
             }else if(dist<dist2){
               dist2 = dist;
             }
@@ -95,11 +102,25 @@ class Material{
       }
     }
     float inLine = (dist2 - dist1)/dist2;
-    if(inLine>0.1){
-      return stoneColor;
+    if(inLine>0.08){
+      //inside cells
+      int scale = 5;
+      float noiseVal = noise_3d(scale * x,scale * y,scale * z);
+      noiseVal = (noiseVal+1)/2;
+      noiseVal = 0.85 + noiseVal/7;
+      
+      randomSeed(int(nfp.x*232+nfp.y*173837+nfp.z*372327));
+      //color sc = color(red(stoneColor)+random(-0.25,0.1),green(stoneColor)+random(-0.25,0.1),blue(stoneColor)+random(-0.5,0.1));
+      color sc = color(red(stoneColor)+random(-0.5,0.1),green(stoneColor)+random(-0.25,0.1),blue(stoneColor)+random(-0.25,0.1));
+      return mulColor(sc,noiseVal);
     }
     else{
-      return diffuse;
+      //outside cells or in cement
+      int scale = 40;
+      float noiseVal = noise_3d(scale * x,scale * y,scale * z);
+      noiseVal = (noiseVal+1)/2;
+      noiseVal = 0.75 + noiseVal/4;
+      return mulColor(diffuse, noiseVal);
     }
   }
   
@@ -134,38 +155,57 @@ class Material{
   }
   
   color getWoodTexel(float x, float y, float z, PVector pos){
-      /*
-      int scale = 20;
-      float noiseVal = noise_3d(scale * x, scale * y, scale * z);
-      noiseVal = (noiseVal+1)/2;
-      noiseVal = noiseVal * scale;
-      float grain = noiseVal - int(noiseVal);
-      return mulColor(diffuse, noiseVal);
-      */
       color light = color(0.91, 0.65, 0.35);
       color dark = color(0.54, 0.31, 0.05);
-      color brown = color(0.8, 0.4, 0);
-      
-      
+      color brown = color(0.7, 0.4, 0.2);
       
       y = y - pos.y ;
       z = z - pos.z ;
+      
+      //rotating
+      float q = radians(-60);
+      z = z*cos(q) - x*sin(q);
+      x = z*sin(q) + x*cos(q);
+      y = y;
+      
+      //for bands
       float dist = sqrt(y*y + z*z);
-      dist = dist * 80;
+      dist = dist * 55;
       
-      int scale = 5;
+      float scale = 8;
       float noiseVal = noise_3d(scale * x,scale * y,scale * z);
-      //noiseVal = (noiseVal+1)/2;
-      //int scale2 = 7;
-      //float noiseVal2 = 1+noise_3d(scale2 * x,scale2 * y,scale2 * z);
-      dist = dist + noiseVal; //+ noiseVal2;
       
+      dist = dist + noiseVal; 
       float onLine = (1+sin(dist))*0.5;
-      if(onLine<0.45)
-        return light;
-      else
-        return dark;
-      //return interpolateColors(light, onLine, dark);
+      
+      //for thin lines
+      int scale2 = 10;
+      float noiseVal2 = 4*noise_3d(scale2 * x,scale2 * y,scale2 * z);
+      float param = x*217 + y*227+ noiseVal2 + 2*turbulence(x,y,z);
+      float inLine = (1+sin(param))/2;
+      
+      //deciding the band color
+      color base = light;
+      if(onLine<0.55){
+        if(inLine<0.25){
+          base = interpolateColors(brown,inLine+0.2,light);
+        }
+        else
+          base = light;
+      }
+      else{
+        if(inLine < 0.25){
+          base = interpolateColors(brown,inLine+0.2,dark);
+        }else{
+           base = dark;
+        }
+      }
+      
+      //final faint noise on texture
+      float noiseScale3 = 20;
+      float noiseVal3 = noise_3d(noiseScale3 * x,noiseScale3 * y,noiseScale3 * z);
+      noiseVal3 = 0.8 + (noiseVal3+1)/20;
+      return mulColor(base, noiseVal3);
   }
 }
 
