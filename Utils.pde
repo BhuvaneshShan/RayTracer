@@ -1,6 +1,12 @@
 void printlg(String s){
-  if(LOG)
-    println(s);
+  //if(LOG)
+    //println(s);
+}
+void printlg(String s, int level){
+  if(level==2){
+    if(LOG)
+      println(s);
+  }
 }
 boolean LOG = true;
 color addColors(color a, color b){

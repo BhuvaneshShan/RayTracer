@@ -1,8 +1,9 @@
 enum TextureType{ NONE, NOISE, WOOD, MARBLE, STONE};
-  
+enum MaterialType{ DIFFUSIVE, REFLECTIVE};
 class Material{
   color diffuse;
   color ambient;
+  float k_refl;
   
   boolean hasNoise = false;
   int noiseScale = 0;
@@ -13,9 +14,25 @@ class Material{
     diffuse = color(tr,tg,tb);
     ambient = color(ar,ag,ab);
     texType = TextureType.NONE;
+    k_refl = 0;
+  }
+  Material(float tr, float tg, float tb, float ar, float ag, float ab, float k){
+    diffuse = color(tr,tg,tb);
+    ambient = color(ar,ag,ab);
+    texType = TextureType.NONE;
+    k_refl = k;
   }
   color getDiffuse(){
     return diffuse;
+  }
+  MaterialType getMaterialType(){
+    if(k_refl==0)
+      return MaterialType.DIFFUSIVE;
+    else
+      return MaterialType.REFLECTIVE;
+  }
+  float getReflectanceQuotient(){
+    return k_refl;
   }
   color getDiffuse(float x, float y, float z, PVector pos){
     if(texType == TextureType.NOISE){

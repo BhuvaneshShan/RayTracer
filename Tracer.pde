@@ -18,6 +18,12 @@ class raytracer{
   boolean hasLens = false;
   Lens lens;
   
+  boolean photonMapping = false;
+  int causticPhotonCount = 0;
+  int numPhotonsNearby = 0;
+  float maxDistToSearch = 0;
+  kd_tree photonTree;
+  
   raytracer(){
     objects = new ArrayList<Object>();
     materials = new ArrayList<Material>();
@@ -53,8 +59,8 @@ class raytracer{
     //objects.add(obj);
     printlg("object set at "+obj.pos.x+","+obj.pos.y+","+obj.pos.z+"; Mat id:"+curMaterialId);
   }
-  void addMaterial(float r, float g, float b, float ar, float ag, float ab){
-    materials.add(new Material(r,g,b,ar,ag,ab));
+  void addMaterial(float r, float g, float b, float ar, float ag, float ab, float krefl){
+    materials.add(new Material(r,g,b,ar,ag,ab,krefl));
     curMaterialId=materials.size()-1;
     printlg("material added");
   }
@@ -97,6 +103,10 @@ class raytracer{
     LOG = false;
     loadPixels();
     
+    if(photonMapping){
+      photonMapping();
+    }
+    
     PVector raydir = new PVector();
     boolean randomizeOffset;
     PVector pixelColVal = new PVector(0,0,0);
@@ -110,12 +120,12 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
-       /* if(x==screen_width/2 && y==screen_height/2){
+       if((x==270 && y==495)){
           LOG = true;
         }
         else{
           LOG = false;
-        }*/
+        }
         pixelColVal.set(0,0,0);
         
         if(hasLens == true){
@@ -156,21 +166,51 @@ class raytracer{
     for(int i=0;i<objects.size();i++){
       CollisionData cData = objects.get(i).isIntersects(org,raydir);
       if(cData.root > 0){
-        printlg("IsIntersects obj "+i+" root:"+cData.root);
+        printlg("IsIntersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
         printlg("pos on obj:"+cData.posOnObj.toString());
         printlg("finalz:"+finalZ);
          if( cData.posOnObj.z > finalZ){
           printlg("\nchecking");
           finalZ = cData.posOnObj.z;
+          
           color diffuseColor = materials.get(cData.materialId).getDiffuse(cData.posOnObj.x, cData.posOnObj.y, cData.posOnObj.z, cData.objPos); //color(0.3,0.6,0.1);//
           color ambientColor = materials.get(cData.materialId).getAmbient();
-          color reflRayColor = getReflectedRayColor( i, cData);
+          
+          color reflRayColor = getReflectedRayColor( i, cData); //For shadows
+          pixelColor = mulColors(diffuseColor, reflRayColor);
+          
+          //If reflective material, spawn reflective ray to get reflection of other objects. i.e. color
+          if(materials.get(cData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
+            printlg("=>Shooting reflection ray:");
+            float k_refl = materials.get(cData.materialId).getReflectanceQuotient();
+            printlg("k_refl:"+k_refl);
+            //if(random(1) < k_refl){
+            raydir.normalize();
+            cData.normal.normalize();
+            PVector reflectionDir = PVector.sub(raydir, PVector.mult(cData.normal,2.0f * PVector.dot(raydir,cData.normal)));
+            color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir);
+            printlg("Reflection color:"+colorToStr(reflection));
+            reflection = mulColor(reflection, k_refl);
+            pixelColor = addColors(pixelColor, reflection);
+            printlg("=>Out of refl ray");
+            //}
+          }
+          
+          //If photonmapping 
+          if(photonMapping){
+            color photonColor = getNearbyPhotonsColor(cData.posOnObj);
+            //println("pix before:"+colorToStr(pixelColor));
+            pixelColor = addColors(pixelColor, photonColor);
+            printlg("Final Photon color:"+colorToStr(photonColor),2);
+            //println("pix after:"+colorToStr(pixelColor));
+           }
+          
           //printlg("diffuse col:" + colorToStr(diffuseColor));
           //printlg("ambient col:" + colorToStr(ambientColor));
           //printlg("refl ray color"+ colorToStr(reflRayColor));
-          pixelColor = mulColors(diffuseColor, reflRayColor);
+          
           pixelColor = addColors(pixelColor,ambientColor);
-          //printlg("pixel col:" + colorToStr(pixelColor));
+          printlg("pixel col:" + colorToStr(pixelColor));
         }
       }
     }
@@ -178,7 +218,58 @@ class raytracer{
     return pixelColor;
   }
   
+  color intersectsReflectionObject(PVector org, PVector raydir){
+    color pixelColor = bg;
+    float finalRoot = MAX_FLOAT;
+    for(int i=0;i<objects.size();i++){
+      CollisionData cData = objects.get(i).isIntersects(org,raydir);
+      if(cData.root > 0 && cData.posOnObj != org){
+        printlg("IsIntersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
+        printlg("pos on obj:"+cData.posOnObj.toString());
+        printlg("finalRoot:"+finalRoot);
+        if( cData.root < finalRoot){
+          printlg("\nchecking");
+          finalRoot = cData.root;
+          
+          color diffuseColor = materials.get(cData.materialId).getDiffuse(cData.posOnObj.x, cData.posOnObj.y, cData.posOnObj.z, cData.objPos); //color(0.3,0.6,0.1);//
+          color ambientColor = materials.get(cData.materialId).getAmbient();
+          
+          color reflRayColor = getReflectedRayColor( i, cData); //For shadows
+          pixelColor = mulColors(diffuseColor, reflRayColor);
+          
+          //If reflective material, spawn reflective ray to get reflection of other objects. i.e. color
+          if(materials.get(cData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
+            printlg("=>Shooting reflection ray:");
+            
+            float k_refl = materials.get(cData.materialId).getReflectanceQuotient();
+            printlg("k_refl:"+k_refl);
+            
+            raydir.normalize();
+            cData.normal.normalize();
+            
+            PVector reflectionDir = PVector.sub(raydir, PVector.mult(cData.normal,2.0f * PVector.dot(raydir,cData.normal)));
+            color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir);
+            printlg("Reflection color:"+colorToStr(reflection));
+            reflection = mulColor(reflection, k_refl);
+            pixelColor = addColors(pixelColor, reflection);
+            printlg("=>Out of refl ray");
+           }
+          //If photonmapping 
+          if(photonMapping){
+            color photonColor = getNearbyPhotonsColor(cData.posOnObj); 
+            pixelColor = addColors(pixelColor, photonColor);
+           }
+          pixelColor = addColors(pixelColor,ambientColor);
+          printlg("refl pixel col:" + colorToStr(pixelColor), 2);
+        }
+      }
+    }
+    //printlg("pixel col:" + colorToStr(pixelColor));
+    return pixelColor;
+  }
+  
   color getReflectedRayColor(int objId, CollisionData cData){
+    //Function to get shadows
     color refrRayColor = color(0,0,0);
     //send ray to all lights
     printlg("posOnObj:"+cData.posOnObj.toString());
@@ -186,7 +277,7 @@ class raytracer{
     printlg("obj pos:" +cData.objPos.toString());
     for(int i=0;i<lights.size();i++){
       //PVector refrRayDir = PVector.sub(lights.get(i).getPos(), cData.posOnObj).normalize();
-      PVector refrRayDir = PVector.sub(cData.posOnObj,lights.get(i).getPos()).normalize(); //cast from light to point not the other way
+      PVector refrRayDir = PVector.sub(cData.posOnObj,lights.get(i).getPos()).normalize(); //casting from light to point not the other way
       
       boolean hitAnObject=false;
       for(int j=0; j<objects.size(); j++){
@@ -217,6 +308,131 @@ class raytracer{
     }
     printlg("refr Ray color: "+colorToStr(refrRayColor));
     return refrRayColor;
+  }
+  
+  void photonMapping(){
+    println("Starting Photon Mapping");
+    photonTree = new kd_tree();
+    int photonCount = causticPhotonCount;
+    int powerScale = 2;
+    int added = 0;
+    int nothing = 0;
+    
+    for(int l=0; l<lights.size(); l++){
+      Light light = lights.get(l);
+      //mapPhotons(lights.get(i), photonTree, causticPhotonCount, 4);
+      for(int i=0;i<photonCount; i++){
+        float x,y,z;
+        do{
+          x = random(-1,1);
+          y = random(-1,1);
+          z = random(-1,1);
+        }while(sqrt(x*x+y*y+z*z)>1);
+        PVector dir = new PVector(x,y,z).normalize();
+        PVector org = light.getPos();
+        PVector photonPos = shootPhoton(org,dir);
+        if(photonPos.x == -MAX_FLOAT && photonPos.y == -MAX_FLOAT && photonPos.z == -MAX_FLOAT){
+          //do nothing
+          nothing++;
+        }else{
+          // PVector power = PVector.mult(convertColor(light.getColor()), powerScale*1.0/float(photonCount));
+          PVector power = PVector.mult(convertColor(light.getColor()), powerScale*1.0/float(photonCount));
+          // PVector power = convertColor(light.getColor());
+          printlg("Adding power:"+power.toString(),2);
+          Photon photon = new Photon(photonPos, power);
+          photonTree.add_photon(photon);
+          added++;
+        }
+      }
+    }
+    photonTree.build_tree();
+    printlg("added:"+added);
+    printlg("nothing:"+nothing);
+    printlg("Photon tree size:"+photonTree.get_photon_count());
+    println("Photon Mapping done!");
+  }
+  
+  
+  PVector shootPhoton(PVector org, PVector dir){
+    
+    int photonHitCount = 0;
+    boolean foundPosition = false;
+    PVector finalPos = new PVector(0,0,0);
+    /*
+    float rootMax = MAX_FLOAT;
+    CollisionData finalCData = null;
+    for(int i=0;i<objects.size();i++){
+      CollisionData cData = objects.get(i).isIntersects(org,dir);
+      if(cData.root > 0 && cData.root<rootMax &&  cData.posOnObj != org){
+        rootMax = cData.root;
+        finalCData = cData;
+      }
+    }
+    if(rootMax < 0 || rootMax == MAX_FLOAT){
+        finalPos = new PVector(-MAX_FLOAT, -MAX_FLOAT, -MAX_FLOAT);
+        return finalPos;
+    }
+    return finalCData.posOnObj;
+    */
+    
+    while(foundPosition == false){
+      float rootMax = MAX_FLOAT;
+      CollisionData finalCData = null;
+      for(int i=0;i<objects.size();i++){
+        CollisionData cData = objects.get(i).isIntersects(org,dir);
+        if(cData.root > 0 && cData.root<rootMax &&  cData.posOnObj != org){
+          rootMax = cData.root;
+          finalCData = cData;
+        }
+      }
+      if(rootMax < 0 || rootMax == MAX_FLOAT){
+        finalPos = new PVector(-MAX_FLOAT, -MAX_FLOAT, -MAX_FLOAT);
+        foundPosition = true;
+      }else{
+        photonHitCount++;
+        if(photonHitCount>1 && materials.get(finalCData.materialId).getMaterialType() == MaterialType.DIFFUSIVE){
+          foundPosition = true;
+          finalPos = finalCData.posOnObj;
+        }else if(materials.get(finalCData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
+          org = finalCData.posOnObj;
+          dir.normalize();
+          finalCData.normal.normalize();
+          dir = PVector.sub(dir, PVector.mult(finalCData.normal,2.0f * PVector.dot(dir,finalCData.normal)));
+        }else{
+          foundPosition = true;
+          finalPos = new PVector(-MAX_FLOAT, -MAX_FLOAT, -MAX_FLOAT);
+        }
+      }
+    }
+    return finalPos;
+    
+  }
+  
+  color getNearbyPhotonsColor(PVector pos){ 
+    ArrayList<Photon> plist;
+    plist = photonTree.find_near ((float)pos.x, (float)pos.y, (float)pos.z, numPhotonsNearby, maxDistToSearch);
+    color photonColor = color(0,0,0);
+    for(int i=0;i<plist.size();i++){
+      //println("pos:"+pos.toString());
+      Photon p = plist.get(i);
+      if(p!=null){
+        //println("photon:"+ p.getPos().toString());
+        float r = PVector.dist(pos, p.getPos());
+        //printlg("r:"+r,2);
+        PVector pow = p.getPow();
+        //printlg("pow:"+pow.toString(),2);
+        pow = PVector.mult(pow,1.0/(r*r));
+        //printlg("After considering dist:"+pow.toString(),2);
+        color toAdd = convertColor(pow);
+        //printlg("toAdd col:"+colorToStr(toAdd),2);
+        photonColor = addColors(photonColor, toAdd);
+        //printlg("Photon color:" + colorToStr(photonColor),2);
+      }else{
+        //println("p is null");
+      }
+    }
+    printlg("returning Photon color:" + colorToStr(photonColor),2);
+    return photonColor;
   }
   
   boolean vectorEquals(PVector one, PVector two){

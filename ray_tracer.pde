@@ -32,7 +32,7 @@ void setup() {
   printMatrix();
   RTracer = new raytracer();
   RTracer.reset();
-  interpreter("t01.cli");
+  interpreter("t04.cli");
 }
 
 // Press key 1 to 9 and 0 to run different test cases.
@@ -91,8 +91,17 @@ void interpreter(String filename) {
         float(token[8]),float(token[9]), float(token[10]) //r,g,b
         )); 
      }
+    else if(token[0].equals("caustic_photons")){
+      RTracer.photonMapping= true;
+      RTracer.causticPhotonCount = int(token[1]);
+      RTracer.numPhotonsNearby = int(token[2]);
+      RTracer.maxDistToSearch = float(token[3]);
+    }
     else if (token[0].equals("diffuse")) {
-      RTracer.addMaterial(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]));
+      RTracer.addMaterial(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]), 0); //k_relf is 0 for diffuse surface
+    }
+    else if (token[0].equals("reflective")){
+      RTracer.addMaterial(float(token[1]),float(token[2]),float(token[3]),float(token[4]),float(token[5]),float(token[6]), float(token[7]));
     }
     else if (token[0].equals("noise")){
       RTracer.addNoiseToMaterial(int(token[1]));
@@ -248,6 +257,7 @@ void interpreter(String filename) {
       println("Rendering...");
       RTracer.rayTrace();
       save(token[1]);  
+      println("Done.");
     }
   }
 }
