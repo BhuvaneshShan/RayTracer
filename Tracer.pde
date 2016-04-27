@@ -119,7 +119,7 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
-       if((x==113 && y==431)){
+       if((x==173 && y==513)){
           LOG = true;
           printlg("\n Processing Pixel:"+x+","+y);
         }
@@ -300,10 +300,16 @@ class raytracer{
       for(int j=0; j<objects.size(); j++){
           //CollisionData hitData = objects.get(j).isIntersects(cData.posOnObj,refrRayDir);
           CollisionData hitData = objects.get(j).isIntersects(lights.get(i).getPos(),refrRayDir);   //origin is set as light
-          //printlg(hitData.root+" hitData:"+hitData.posOnObj.toString());
-          if(hitData.root > ZERO && !vectorEquals(hitData.objPos,cData.objPos)){
+          printlg("hitdt root:"+hitData.root+" hitdt posonObj:"+hitData.posOnObj.toString() + " objPos:"+hitData.objPos.toString());
+          printlg("cData root:"+cData.root+" cData posonObj:"+cData.posOnObj.toString() + " objPos:"+cData.objPos.toString());
+
+          if(hitData.root > ZERO && !vectorEquals(hitData.objPos,cData.objPos)){ //.objPos
             //if hit
-            if(hitData.posOnObj.z >= cData.posOnObj.z){
+            //if( hitData.posOnObj.z > cData.posOnObj.z){
+            float lightz = lights.get(i).getPos().z;
+            float hitz = hitData.posOnObj.z;
+            float objz = cData.posOnObj.z;
+            if( (hitz < lightz && hitz > objz) || ( hitz > lightz && hitz < objz) ){ 
               hitAnObject = true;
               //printlg("hit an  obj true with obj pos "+hitData.objPos.toString());
               break;

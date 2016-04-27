@@ -112,8 +112,8 @@ class Sphere extends Object{
     this.radius = s.radius;
   }
   CollisionData isIntersects(PVector rayorigin, PVector raydir){
-    //printlg("Sphre ray Origin:"+rayorigin.x+","+rayorigin.y+","+rayorigin.z);
-    //printlg("Sphre Trans Origin:"+txrayorigin.x+","+txrayorigin.y+","+txrayorigin.z);
+    printlg("Sphre ray Origin:"+rayorigin.toString()+" ray dir:"+raydir.toString());
+   
     CollisionData cObj = new CollisionData();
     cObj.objPos = this.pos;
     PVector tcenter = PVector.sub(pos,rayorigin);
@@ -134,7 +134,9 @@ class Sphere extends Object{
     }else{
       cObj.root = 0.0;
     }
+    printlg("root:"+cObj.root);
     cObj.posOnObj =  PVector.add(rayorigin, PVector.mult(raydir,cObj.root));
+    printlg("pos on sph:"+cObj.posOnObj.toString());
     cObj.normal = PVector.sub(cObj.posOnObj,pos).normalize();
     cObj.materialId = this.materialId;
     return cObj;
@@ -276,9 +278,12 @@ class Triangle extends Object{
     }
     return coeff;
   }
-  float nearzero = 0.000001;
+  float nearzero = 0.000001;//0.00000001;//
   
   CollisionData isIntersects(PVector rayorigin, PVector raydir){
+    //printlg("triangle intersection:");
+    //printlg("ray origin:"+rayorigin.toString());
+    //printlg("raydir:"+raydir.toString());
     CollisionData cObj = new CollisionData();
     cObj.objPos = this.pos;
     cObj.materialId = this.materialId;
@@ -287,30 +292,52 @@ class Triangle extends Object{
     PVector vecB = PVector.sub(vertices.get(2),vertices.get(0));
     PVector p = raydir.cross(vecB);
     float det = PVector.dot(vecA,p);
+    
+    //printlg("Veca:"+vecA.toString()+" Vecb:"+vecB.toString());
+    //printlg("p:"+p.toString());
+    //printlg("det:"+det);
+    
     if( det>-nearzero && det<nearzero){
+      //printlg("det probs");
       cObj.root = 0;
       return cObj;
     }
     float invdet = 1.f/det;
     PVector t = PVector.sub(rayorigin,vertices.get(0));
     float u = PVector.dot(t,p)*invdet;
+    
+    //printlg("invdet:"+invdet);
+    //printlg("t:"+t.toString());
+    //printlg("u:"+u);
+    
     if( u<0.f || u>1.f){
+      //printlg("u probs");
       cObj.root = 0;
       return cObj;
     }
     PVector q = t.cross(vecA);
     float v = PVector.dot(raydir,q)*invdet;
+    
+    //printlg("q:"+q.toString());
+    //printlg("v:"+v);
+    
     if(v<0.f || u+v > 1.f){
+      //printlg("v probs:");
       cObj.root = 0;
       return cObj;
     }
     float root = PVector.dot(vecB,q)*invdet;
+    //printlg("root:"+root);
     if(root>nearzero){
       cObj.root = root;
       cObj.posOnObj =  PVector.add(rayorigin, PVector.mult(raydir,cObj.root));
+      printlg("triangle intersection:");
+      printlg("ray origin:"+rayorigin.toString()+" raydir:"+raydir.toString());
+      printlg("@@triang root:"+root+" pos on obj:"+cObj.posOnObj.toString()+"\n");
       cObj.normal = getNormal(cObj.posOnObj);
       return cObj;
     }
+    // printlg("root probs");
       cObj.root = 0;
       return cObj;
   }
@@ -445,8 +472,8 @@ class HollowCylinder extends Object{
       float t2 = (-b - sqrt(d))/(2*a) ;
       PVector posOnObj1 = PVector.add(rayorigin, PVector.mult(raydir, t1));
       PVector posOnObj2 = PVector.add(rayorigin, PVector.mult(raydir, t2));
-      printlg("hollcyl t1:"+t1+"; onObj:"+posOnObj1.toString());
-      printlg("hollcyl t2:"+t2+"; onObj:"+posOnObj2.toString());
+      //printlg("hollcyl t1:"+t1+"; onObj:"+posOnObj1.toString());
+      //printlg("hollcyl t2:"+t2+"; onObj:"+posOnObj2.toString());
       if(withinYRange(posOnObj1) && withinYRange(posOnObj2)){
         //printlg("both less");
         if(t1<0.0001 || t2 < 0.0001){
@@ -475,15 +502,15 @@ class HollowCylinder extends Object{
           cObj.posOnObj = posOnObj2;
           cObj.root = t2;
       }else{
-        printlg("none less");
+        //printlg("none less");
         return new CollisionData();
       }
       PVector position = new PVector(this.pos.x, this.pos.y, this.pos.z);
       position.y = cObj.posOnObj.y;
       cObj.normal = PVector.sub(cObj.posOnObj,position).normalize();//getNormal(cObj.posOnObj);
       cObj.materialId = this.materialId;
-      printlg("hollcyl root selected:"+cObj.root);
-      printlg("normal:"+cObj.normal.toString());
+      //printlg("hollcyl root selected:"+cObj.root);
+      //printlg("normal:"+cObj.normal.toString());
       return cObj;
     }else{
       cObj.root = 0.0;
