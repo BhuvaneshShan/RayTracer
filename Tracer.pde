@@ -4,6 +4,7 @@ class raytracer{
   int minx, miny, maxx, maxy;
   float sw2, sh2; //screen width /2 and screen height /2
   PVector origin = new PVector(0,0,0); //also eye position
+  float ZERO = 0.0001;
   
   int raysPerPixel = 1;
   float midPixelOffset = 0.5;
@@ -118,7 +119,7 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
-       if((x==293 && y==414)){
+       if((x==113 && y==431)){
           LOG = true;
           printlg("\n Processing Pixel:"+x+","+y);
         }
@@ -163,15 +164,16 @@ class raytracer{
   
   
   color intersectsObject(PVector org, PVector raydir){
-    color pixelColor = bg;
+    color finalPixelColor = bg;
     float finalZ = -MAX_FLOAT;
     for(int i=0;i<objects.size();i++){
       CollisionData cData = objects.get(i).isIntersects(org,raydir);
-      if(cData.root > 0){
+      if(cData.root > ZERO){
         printlg("\n IsIntersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
         printlg("pos on obj:"+cData.posOnObj.toString());
         printlg("finalz:"+finalZ);
          if( cData.posOnObj.z > finalZ){
+          color pixelColor = bg;
           printlg("$ Z is less. so checking");
           finalZ = cData.posOnObj.z;
           
@@ -194,6 +196,7 @@ class raytracer{
             raydir.normalize();
             cData.normal.normalize();
             PVector reflectionDir = PVector.sub(raydir, PVector.mult(cData.normal,2.0f * PVector.dot(raydir,cData.normal)));
+            printlg("Reflection dir:"+reflectionDir.toString());
             color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir, 1);
             reflection = mulColor(reflection, k_refl);
             printlg("Reflection color (after mul krefl):"+colorToStr(reflection));
@@ -214,11 +217,12 @@ class raytracer{
           
           pixelColor = addColors(pixelColor,ambientColor);
           printlg("pixel col (after add ambient):" + colorToStr(pixelColor));
+          finalPixelColor = pixelColor;
         }
       }
     }
-    printlg("is intersects' Final pixel col:" + colorToStr(pixelColor));
-    return pixelColor;
+    printlg("is intersects' Final pixel col:" + colorToStr(finalPixelColor));
+    return finalPixelColor;
   }
   
   color intersectsReflectionObject(PVector org, PVector raydir, int reflectionCount){
@@ -229,12 +233,12 @@ class raytracer{
     float finalRoot = MAX_FLOAT;
     for(int i=0;i<objects.size();i++){
       CollisionData cData = objects.get(i).isIntersects(org,raydir);
-      if(cData.root > 0 && cData.posOnObj != org){
-        //printlg("IsIntersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
-        //printlg("pos on obj:"+cData.posOnObj.toString());
-        //printlg("finalRoot:"+finalRoot);
+      if(cData.root > ZERO && cData.posOnObj != org){
+        printlg("\nReflection ray Intersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
+        printlg("at pos on obj:"+cData.posOnObj.toString());
+        printlg("the finalRoot:"+finalRoot);
         if( cData.root < finalRoot){
-          //printlg("\nchecking");
+          printlg("checking since cur root is less");
           finalRoot = cData.root;
           //printlg("Initial Pixel Color:"+colorToStr(pixelColor));
           color diffuseColor = materials.get(cData.materialId).getDiffuse(cData.posOnObj.x, cData.posOnObj.y, cData.posOnObj.z, cData.objPos); //color(0.3,0.6,0.1);//
@@ -249,7 +253,7 @@ class raytracer{
           
           //If reflective material, spawn reflective ray to get reflection of other objects. i.e. color
           if(materials.get(cData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
-            printlg("=>Shooting reflection ray:");
+            printlg("=>Shooting recursive reflection ray:");
             
             float k_refl = materials.get(cData.materialId).getReflectanceQuotient();
             printlg("k_refl:"+k_refl);
@@ -259,10 +263,10 @@ class raytracer{
             
             PVector reflectionDir = PVector.sub(raydir, PVector.mult(cData.normal,2.0f * PVector.dot(raydir,cData.normal)));
             color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir, reflectionCount+1);
-            printlg("Reflection color:"+colorToStr(reflection));
             reflection = mulColor(reflection, k_refl);
+            printlg("Reflection color after mul with krefl:"+colorToStr(reflection));
             pixelColor = addColors(pixelColor, reflection);
-            printlg("=>Out of refl ray");
+            printlg("=>Out of recursive refl ray");
            }
           //If photonmapping 
           if(photonMapping){
@@ -276,7 +280,7 @@ class raytracer{
         }
       }
     }
-    //printlg("pixel col:" + colorToStr(pixelColor));
+    printlg("reflection object pixel col:" + colorToStr(pixelColor));
     return pixelColor;
   }
   
@@ -297,7 +301,7 @@ class raytracer{
           //CollisionData hitData = objects.get(j).isIntersects(cData.posOnObj,refrRayDir);
           CollisionData hitData = objects.get(j).isIntersects(lights.get(i).getPos(),refrRayDir);   //origin is set as light
           //printlg(hitData.root+" hitData:"+hitData.posOnObj.toString());
-          if(hitData.root > 0 && !vectorEquals(hitData.objPos,cData.objPos)){
+          if(hitData.root > ZERO && !vectorEquals(hitData.objPos,cData.objPos)){
             //if hit
             if(hitData.posOnObj.z >= cData.posOnObj.z){
               hitAnObject = true;
@@ -389,7 +393,7 @@ class raytracer{
    
     while(random(0,1)<avg){
         CollisionData cData = shootPhotonRandomly(org, dir);
-        if(cData.root>0 && cData.root!=MAX_FLOAT){
+        if(cData.root > ZERO && cData.root!=MAX_FLOAT){
           hitCount ++;
           if(hitCount > 1){
             photonList.add(new Photon(cData.posOnObj, power));
@@ -430,7 +434,7 @@ class raytracer{
     CollisionData finalCData = new CollisionData();
     for(int i=0;i<objects.size();i++){
         CollisionData cData = objects.get(i).isIntersects(org,dir);
-        if(cData.root > 0 && cData.root<rootMax &&  cData.posOnObj != org){
+        if(cData.root > ZERO && cData.root<rootMax &&  cData.posOnObj != org){
           rootMax = cData.root;
           finalCData = cData;
         }
@@ -462,10 +466,10 @@ class raytracer{
     
     while(foundPosition == false){
       float rootMax = MAX_FLOAT;
-      CollisionData finalCData = null;
+      CollisionData finalCData = new CollisionData();
       for(int i=0;i<objects.size();i++){
         CollisionData cData = objects.get(i).isIntersects(org,dir);
-        if(cData.root > 0 && cData.root<rootMax &&  cData.posOnObj != org){
+        if(cData.root > ZERO && cData.root<rootMax &&  cData.posOnObj != org){
           rootMax = cData.root;
           finalCData = cData;
         }

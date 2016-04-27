@@ -430,15 +430,15 @@ class HollowCylinder extends Object{
   CollisionData isIntersects(PVector rayorigin, PVector raydir){
     CollisionData cObj = new CollisionData();
     cObj.objPos = new PVector(this.pos.x, this.pos.y, this.pos.z);
-    printlg("in hollcyl isIntersects. Org:"+rayorigin.toString()+"; dir:"+raydir.toString());
-    printlg("pos:"+pos.toString());
+    //printlg("in hollcyl isIntersects. Org:"+rayorigin.toString()+"; dir:"+raydir.toString());
+    //printlg("pos:"+pos.toString());
     PVector tcenter = PVector.sub(rayorigin, pos);
-    printlg("tcenter:"+tcenter.toString());
+    //printlg("tcenter:"+tcenter.toString());
     float a = raydir.x*raydir.x + raydir.z*raydir.z;
     float b = 2*(raydir.x*tcenter.x+raydir.z*tcenter.z);
     float c = tcenter.x*tcenter.x + tcenter.z*tcenter.z - radius*radius;
     float d = b*b - 4*a*c;
-    printlg("a,b,c,d:"+a+","+b+","+c+","+d);
+    //printlg("a,b,c,d:"+a+","+b+","+c+","+d);
     if(d>=0){
       //if real root
       float t1 = (-b + sqrt(d))/(2*a) ;
@@ -448,8 +448,18 @@ class HollowCylinder extends Object{
       printlg("hollcyl t1:"+t1+"; onObj:"+posOnObj1.toString());
       printlg("hollcyl t2:"+t2+"; onObj:"+posOnObj2.toString());
       if(withinYRange(posOnObj1) && withinYRange(posOnObj2)){
-        printlg("both less");
-        if(t1<=t2 || t2<0){
+        //printlg("both less");
+        if(t1<0.0001 || t2 < 0.0001){
+          if(t1<0.0001 && t2 > 0.0001){
+            cObj.posOnObj = posOnObj2;
+            cObj.root = t2;
+          }else if(t2<0.0001 && t1 > 0.0001){
+            cObj.posOnObj = posOnObj1;
+            cObj.root = t1;
+          }
+        }else
+        if(t1<=t2 || t2< 0.0001){
+          
           cObj.posOnObj = posOnObj1;
           cObj.root = t1;
         }else{
@@ -457,11 +467,11 @@ class HollowCylinder extends Object{
           cObj.root = t2;
         }
       }else if(withinYRange(posOnObj1)){
-          printlg("only t1 less");
+          //printlg("only t1 less");
           cObj.posOnObj = posOnObj1;
           cObj.root = t1;
       }else if(withinYRange(posOnObj2)){
-          printlg("only t2 less");
+          //printlg("only t2 less");
           cObj.posOnObj = posOnObj2;
           cObj.root = t2;
       }else{
@@ -473,6 +483,7 @@ class HollowCylinder extends Object{
       cObj.normal = PVector.sub(cObj.posOnObj,position).normalize();//getNormal(cObj.posOnObj);
       cObj.materialId = this.materialId;
       printlg("hollcyl root selected:"+cObj.root);
+      printlg("normal:"+cObj.normal.toString());
       return cObj;
     }else{
       cObj.root = 0.0;
