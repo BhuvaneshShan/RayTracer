@@ -118,7 +118,7 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
-       if((x==495 && y==503)){
+       if((x==293 && y==414)){
           LOG = true;
           printlg("\n Processing Pixel:"+x+","+y);
         }
@@ -178,8 +178,13 @@ class raytracer{
           color diffuseColor = materials.get(cData.materialId).getDiffuse(cData.posOnObj.x, cData.posOnObj.y, cData.posOnObj.z, cData.objPos); //color(0.3,0.6,0.1);//
           color ambientColor = materials.get(cData.materialId).getAmbient();
           
-          color reflRayColor = getReflectedRayColor( i, cData); //For shadows
-          pixelColor = mulColors(diffuseColor, reflRayColor);
+          printlg("Init Pixelcol:"+ colorToStr(pixelColor));
+          
+          color shadowRayColor = getShadowRayColor( i, cData); //For shadows
+          printlg("Shadow Color:"+colorToStr(shadowRayColor));
+          pixelColor = mulColors(diffuseColor, shadowRayColor);
+          
+          printlg("Pixel Color (after mul shadow):"+colorToStr(pixelColor));
           
           //If reflective material, spawn reflective ray to get reflection of other objects. i.e. color
           if(materials.get(cData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
@@ -189,13 +194,15 @@ class raytracer{
             raydir.normalize();
             cData.normal.normalize();
             PVector reflectionDir = PVector.sub(raydir, PVector.mult(cData.normal,2.0f * PVector.dot(raydir,cData.normal)));
-            color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir);
-            printlg("Reflection color:"+colorToStr(reflection));
+            color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir, 1);
             reflection = mulColor(reflection, k_refl);
+            printlg("Reflection color (after mul krefl):"+colorToStr(reflection));
             pixelColor = addColors(pixelColor, reflection);
             printlg("<<=Out of refl ray");
           }
           
+          printlg("Pixel Color (after add reflection):"+colorToStr(pixelColor));
+
           //If photonmapping 
           if(photonMapping){
             color photonColor = getNearbyPhotonsColor(cData.posOnObj);
@@ -205,37 +212,40 @@ class raytracer{
             //println("pix after:"+colorToStr(pixelColor));
            }
           
-          //printlg("diffuse col:" + colorToStr(diffuseColor));
-          //printlg("ambient col:" + colorToStr(ambientColor));
-          //printlg("refl ray color"+ colorToStr(reflRayColor));
-          
           pixelColor = addColors(pixelColor,ambientColor);
-          printlg("pixel col:" + colorToStr(pixelColor));
+          printlg("pixel col (after add ambient):" + colorToStr(pixelColor));
         }
       }
     }
-    printlg("is intersects final pixel col:" + colorToStr(pixelColor));
+    printlg("is intersects' Final pixel col:" + colorToStr(pixelColor));
     return pixelColor;
   }
   
-  color intersectsReflectionObject(PVector org, PVector raydir){
+  color intersectsReflectionObject(PVector org, PVector raydir, int reflectionCount){
     color pixelColor = bg;
+    if(reflectionCount>9){
+      return pixelColor;
+    }
     float finalRoot = MAX_FLOAT;
     for(int i=0;i<objects.size();i++){
       CollisionData cData = objects.get(i).isIntersects(org,raydir);
       if(cData.root > 0 && cData.posOnObj != org){
-        printlg("IsIntersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
-        printlg("pos on obj:"+cData.posOnObj.toString());
-        printlg("finalRoot:"+finalRoot);
+        //printlg("IsIntersects obj "+i+" root:"+cData.root+" obj center:"+cData.objPos);
+        //printlg("pos on obj:"+cData.posOnObj.toString());
+        //printlg("finalRoot:"+finalRoot);
         if( cData.root < finalRoot){
-          printlg("\nchecking");
+          //printlg("\nchecking");
           finalRoot = cData.root;
-          
+          //printlg("Initial Pixel Color:"+colorToStr(pixelColor));
           color diffuseColor = materials.get(cData.materialId).getDiffuse(cData.posOnObj.x, cData.posOnObj.y, cData.posOnObj.z, cData.objPos); //color(0.3,0.6,0.1);//
           color ambientColor = materials.get(cData.materialId).getAmbient();
           
-          color reflRayColor = getReflectedRayColor( i, cData); //For shadows
-          pixelColor = mulColors(diffuseColor, reflRayColor);
+          
+          color reflRayColor = getShadowRayColor( i, cData); //For shadows
+          //printlg("Shadow Color:"+colorToStr(pixelColor));
+           pixelColor = mulColors(diffuseColor, reflRayColor);
+          //printlg("After shadow mul Pixel Color:"+colorToStr(pixelColor));
+          
           
           //If reflective material, spawn reflective ray to get reflection of other objects. i.e. color
           if(materials.get(cData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
@@ -248,7 +258,7 @@ class raytracer{
             cData.normal.normalize();
             
             PVector reflectionDir = PVector.sub(raydir, PVector.mult(cData.normal,2.0f * PVector.dot(raydir,cData.normal)));
-            color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir);
+            color reflection = intersectsReflectionObject(cData.posOnObj, reflectionDir, reflectionCount+1);
             printlg("Reflection color:"+colorToStr(reflection));
             reflection = mulColor(reflection, k_refl);
             pixelColor = addColors(pixelColor, reflection);
@@ -259,8 +269,10 @@ class raytracer{
             color photonColor = getNearbyPhotonsColor(cData.posOnObj); 
             pixelColor = addColors(pixelColor, photonColor);
            }
+          //printlg("After reflection and photons Pixel Color:"+colorToStr(pixelColor));
+                   
           pixelColor = addColors(pixelColor,ambientColor);
-          printlg("refl pixel col:" + colorToStr(pixelColor), 2);
+          //printlg("After ambient add pixel col:" + colorToStr(pixelColor), 2);
         }
       }
     }
@@ -268,10 +280,10 @@ class raytracer{
     return pixelColor;
   }
   
-  color getReflectedRayColor(int objId, CollisionData cData){
+  color getShadowRayColor(int objId, CollisionData cData){
     printlg("=>Finding shadow");
     //Function to get shadows
-    color refrRayColor = color(0,0,0);
+    color shadowRayColor = color(0,0,0);
     //send ray to all lights
     //printlg("posOnObj:"+cData.posOnObj.toString());
     //printlg("normal:" + cData.normal.toString());
@@ -298,18 +310,17 @@ class raytracer{
           //if not hit, then find refrRayColor
           PVector reflRayDir = PVector.sub(lights.get(i).getPos(), cData.posOnObj).normalize(); //dir from point to lightsource
           float coeff = objects.get(objId).dotWithNormal(cData.normal,reflRayDir);
-          //printlg("coeff: "+coeff);
           if(coeff<0) coeff = 0;
           float distance = cData.posOnObj.dist(lights.get(i).pos);
           float intensity = 1;///distance;
          
-          refrRayColor = addColors(refrRayColor,lights.get(i).getColor(),coeff*intensity);
+          shadowRayColor = addColors(shadowRayColor,lights.get(i).getColor(),coeff*intensity);
           //printlg("refr Ray color: "+colorToStr(refrRayColor));
       }
     }
-    //printlg("refr Ray color: "+colorToStr(refrRayColor));
+    //printlg("Shadow Ray color: "+colorToStr(refrRayColor));
     printlg("<=Out of finding shadow");
-    return refrRayColor;
+    return shadowRayColor;
   }
   
   void photonMapping(){
@@ -467,7 +478,7 @@ class raytracer{
         if(photonHitCount>1 && materials.get(finalCData.materialId).getMaterialType() == MaterialType.DIFFUSIVE){
           foundPosition = true;
           finalPos = finalCData.posOnObj;
-        }else if(materials.get(finalCData.materialId).getMaterialType() == MaterialType.REFLECTIVE){
+        }else if(materials.get(finalCData.materialId).getMaterialType() == MaterialType.REFLECTIVE && photonHitCount<10){
           org = finalCData.posOnObj;
           dir.normalize();
           finalCData.normal.normalize();

@@ -123,8 +123,8 @@ class Sphere extends Object{
     float d = b*b - 4*a*c;
     if(d>=0){
       //if real root
-      float t1 = (-b + sqrt(d))/2*a ;
-      float t2 = (-b - sqrt(d))/2*a ;
+      float t1 = (-b + sqrt(d))/(2*a) ;
+      float t2 = (-b - sqrt(d))/(2*a) ;
       //if(t2<0) return t1;
        if(t1<t2){ 
          cObj.root =  t1;
@@ -143,7 +143,7 @@ class Sphere extends Object{
     materialId = id;
   }
   PVector getNormal(PVector posOnObj){
-    return PVector.sub(posOnObj,pos).normalize();
+      return PVector.sub(posOnObj,pos).normalize();
   }
   float dotWithNormal(PVector norm, PVector ray){
     return norm.dot(ray);
@@ -441,8 +441,8 @@ class HollowCylinder extends Object{
     printlg("a,b,c,d:"+a+","+b+","+c+","+d);
     if(d>=0){
       //if real root
-      float t1 = (-b + sqrt(d))/2*a ;
-      float t2 = (-b - sqrt(d))/2*a ;
+      float t1 = (-b + sqrt(d))/(2*a) ;
+      float t2 = (-b - sqrt(d))/(2*a) ;
       PVector posOnObj1 = PVector.add(rayorigin, PVector.mult(raydir, t1));
       PVector posOnObj2 = PVector.add(rayorigin, PVector.mult(raydir, t2));
       printlg("hollcyl t1:"+t1+"; onObj:"+posOnObj1.toString());
@@ -470,7 +470,7 @@ class HollowCylinder extends Object{
       }
       PVector position = new PVector(this.pos.x, this.pos.y, this.pos.z);
       position.y = cObj.posOnObj.y;
-      cObj.normal = PVector.sub(cObj.posOnObj,position).normalize();
+      cObj.normal = PVector.sub(cObj.posOnObj,position).normalize();//getNormal(cObj.posOnObj);
       cObj.materialId = this.materialId;
       printlg("hollcyl root selected:"+cObj.root);
       return cObj;
@@ -491,10 +491,20 @@ class HollowCylinder extends Object{
   PVector getNormal(PVector posOnObj){
     PVector position = pos;
     position.y = posOnObj.y;
-    return PVector.sub(posOnObj,position).normalize();
+    if(posOnObj.z < pos.z){
+      return PVector.sub(position,posOnObj).normalize();
+    }else{
+      return PVector.sub(posOnObj,position).normalize();
+    }
   }
   float dotWithNormal(PVector norm, PVector ray){
-    return norm.dot(ray);
+    float coeff = norm.dot(ray);
+    if(coeff<=0){
+      norm = norm.mult(-1);
+      return norm.dot(ray);
+    }
+    return coeff;
+    //return norm.dot(ray);
   }
    int getMaterialId(){
     return materialId;
