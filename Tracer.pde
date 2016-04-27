@@ -119,7 +119,7 @@ class raytracer{
       
     for(int y=0; y<screen_height; y++){
       for(int x=0; x<screen_width; x++){
-       if((x==173 && y==513)){
+       if((x==1000 && y==1000)){
           LOG = true;
           printlg("\n Processing Pixel:"+x+","+y);
         }
