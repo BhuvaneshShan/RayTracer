@@ -411,6 +411,102 @@ class Polygon extends Object{
   }
 }
 
+class HollowCylinder extends Object{
+  float radius;
+  float ymin;
+  float ymax;
+  HollowCylinder(float tr, float tx,float tymin, float tymax,  float tz){
+    super(tx,tymin,tz);
+    radius = tr;
+    ymin = tymin;
+    ymax = tymax;
+  }
+  HollowCylinder(HollowCylinder s){
+    super(s);
+    this.radius = s.radius;
+    this.ymin = s.ymin;
+    this.ymax = s.ymax;
+  }
+  CollisionData isIntersects(PVector rayorigin, PVector raydir){
+    CollisionData cObj = new CollisionData();
+    cObj.objPos = new PVector(this.pos.x, this.pos.y, this.pos.z);
+    printlg("in hollcyl isIntersects. Org:"+rayorigin.toString()+"; dir:"+raydir.toString());
+    printlg("pos:"+pos.toString());
+    PVector tcenter = PVector.sub(rayorigin, pos);
+    printlg("tcenter:"+tcenter.toString());
+    float a = raydir.x*raydir.x + raydir.z*raydir.z;
+    float b = 2*(raydir.x*tcenter.x+raydir.z*tcenter.z);
+    float c = tcenter.x*tcenter.x + tcenter.z*tcenter.z - radius*radius;
+    float d = b*b - 4*a*c;
+    printlg("a,b,c,d:"+a+","+b+","+c+","+d);
+    if(d>=0){
+      //if real root
+      float t1 = (-b + sqrt(d))/2*a ;
+      float t2 = (-b - sqrt(d))/2*a ;
+      PVector posOnObj1 = PVector.add(rayorigin, PVector.mult(raydir, t1));
+      PVector posOnObj2 = PVector.add(rayorigin, PVector.mult(raydir, t2));
+      printlg("hollcyl t1:"+t1+"; onObj:"+posOnObj1.toString());
+      printlg("hollcyl t2:"+t2+"; onObj:"+posOnObj2.toString());
+      if(withinYRange(posOnObj1) && withinYRange(posOnObj2)){
+        printlg("both less");
+        if(t1<=t2 || t2<0){
+          cObj.posOnObj = posOnObj1;
+          cObj.root = t1;
+        }else{
+          cObj.posOnObj = posOnObj2;
+          cObj.root = t2;
+        }
+      }else if(withinYRange(posOnObj1)){
+          printlg("only t1 less");
+          cObj.posOnObj = posOnObj1;
+          cObj.root = t1;
+      }else if(withinYRange(posOnObj2)){
+          printlg("only t2 less");
+          cObj.posOnObj = posOnObj2;
+          cObj.root = t2;
+      }else{
+        printlg("none less");
+        return new CollisionData();
+      }
+      PVector position = new PVector(this.pos.x, this.pos.y, this.pos.z);
+      position.y = cObj.posOnObj.y;
+      cObj.normal = PVector.sub(cObj.posOnObj,position).normalize();
+      cObj.materialId = this.materialId;
+      printlg("hollcyl root selected:"+cObj.root);
+      return cObj;
+    }else{
+      cObj.root = 0.0;
+      return new CollisionData();
+    }
+  }
+  boolean withinYRange(PVector v){
+    if(v.y <= ymax && v.y >= ymin)
+      return true;
+    else
+      return false;
+  }
+  void assignMaterial(int id){
+    materialId = id;
+  }
+  PVector getNormal(PVector posOnObj){
+    PVector position = pos;
+    position.y = posOnObj.y;
+    return PVector.sub(posOnObj,position).normalize();
+  }
+  float dotWithNormal(PVector norm, PVector ray){
+    return norm.dot(ray);
+  }
+   int getMaterialId(){
+    return materialId;
+  }
+  PVector getMinBounds(){
+    return new PVector(this.pos.x - radius, this.ymin - radius, this.pos.z - radius);
+  }
+  PVector getMaxBounds(){
+    return new PVector(this.pos.x + radius, this.ymax + radius, this.pos.z + radius);
+  }
+}
+
 
 class Box extends Object{
   PVector min;

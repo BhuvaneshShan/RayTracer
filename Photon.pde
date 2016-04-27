@@ -1,6 +1,6 @@
 
 int photon_radius = 4;
-
+enum photonTypes{ CAUSTIC, DIFFUSIVE};
 // Photon class
 public class Photon implements Comparable<Photon>{
   float[] pos;  // 3D position of photon, plus one extra value for nearest neighbor queries

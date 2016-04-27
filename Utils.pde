@@ -1,6 +1,6 @@
 void printlg(String s){
-  //if(LOG)
-    //println(s);
+  if(LOG)
+    println(s);
 }
 void printlg(String s, int level){
   if(level==2){

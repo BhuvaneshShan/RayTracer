@@ -32,7 +32,7 @@ void setup() {
   printMatrix();
   RTracer = new raytracer();
   RTracer.reset();
-  interpreter("t04.cli");
+  interpreter("t01.cli");
 }
 
 // Press key 1 to 9 and 0 to run different test cases.
@@ -93,7 +93,15 @@ void interpreter(String filename) {
      }
     else if(token[0].equals("caustic_photons")){
       RTracer.photonMapping= true;
-      RTracer.causticPhotonCount = int(token[1]);
+      RTracer.photonType = photonTypes.CAUSTIC;
+      RTracer.photonCount = int(token[1]);
+      RTracer.numPhotonsNearby = int(token[2]);
+      RTracer.maxDistToSearch = float(token[3]);
+    }
+    else if(token[0].equals("diffuse_photons")){
+      RTracer.photonMapping= true;
+      RTracer.photonType = photonTypes.DIFFUSIVE;
+      RTracer.photonCount = int(token[1]);
       RTracer.numPhotonsNearby = int(token[2]);
       RTracer.maxDistToSearch = float(token[3]);
     }
@@ -143,7 +151,13 @@ void interpreter(String filename) {
         RTracer.addToScene(CurrentObject);
         CurrentObject = null;
       }
-    }else if(token[0].equals("begin")){
+    }
+    else if(token[0].equals("hollow_cylinder")){
+      PVector txVertex1 = getTransformedVertex(float(token[2]),float(token[4]),float(token[3]));
+      PVector txVertex2 = getTransformedVertex(float(token[2]),float(token[5]),float(token[3]));
+      RTracer.addObject(new HollowCylinder( float(token[1]), txVertex1.x, txVertex1.y, txVertex2.y, txVertex1.z));
+    }
+    else if(token[0].equals("begin")){
       tempPolygon = new Polygon();
     }
     else if(token[0].equals("end")){
@@ -151,10 +165,10 @@ void interpreter(String filename) {
         RTracer.addObject(new Polygon(tempPolygon));
       else if(tempPolygon.vertices.size()==3)
         RTracer.addObject(new Triangle(tempPolygon));  
-      if(!AddToList){
+      /*if(!AddToList){
         RTracer.addToScene(CurrentObject);
         CurrentObject = null;
-      }
+      }*/
     }
     else if(token[0].equals("vertex")){
       PVector txVertex = getTransformedVertex(float(token[1]),float(token[2]),float(token[3]));
