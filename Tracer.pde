@@ -340,7 +340,7 @@ class raytracer{
     if(photonType == photonTypes.CAUSTIC){
       powerScale = 10;
     }else{
-      powerScale = 4;
+      powerScale = 2;
     }
     int added = 0;
     int nothing = 0;
@@ -386,19 +386,70 @@ class raytracer{
     photonTree.build_tree();
     printlg("added:"+added);
     printlg("nothing:"+nothing);
-    printlg("Photon tree size:"+photonTree.get_photon_count());
+    //printlg("Photon tree size:"+photonTree.get_photon_count());
     println("Photon Mapping done!");
   }
   
-  ArrayList shootDiffusePhoton(PVector org, PVector dir, PVector lightColor, int powerScale){
-    int hitCount =0 ;
+  ArrayList shootDiffusePhoton(PVector torg, PVector tnorm, PVector lightColor, int powerScale){
+    PVector org = new PVector(torg.x, torg.y, torg.z);
+    PVector norm = new PVector(tnorm.x, tnorm.y, tnorm.z);
+    
+    MaterialType surfaceType = MaterialType.DIFFUSIVE;
+    PVector incomingRayDir = new PVector();
+    CollisionData cData = new CollisionData();
     ArrayList<Photon> photonList = new ArrayList<Photon>();
-    boolean stop = false;
+    
+    int hitCount =0;
     float avg = 1;//(lightColor.x +lightColor.y + lightColor.z)/3;
+    
     PVector power = PVector.mult(lightColor, powerScale*1.0/float(photonCount));
-   
+    
     while(random(0,1)<avg){
-        CollisionData cData = shootPhotonRandomly(org, dir);
+        if(surfaceType == MaterialType.DIFFUSIVE){
+          //Diffuse surface
+          //So bounce in random dir
+                  float x,y,z;
+                  do{
+                    x = random(-1,1);
+                    y = random(-1,1);
+                  }while(sqrt(x*x+y*y)>=1);
+                  z = sqrt(1 - x*x - y*y);
+                  PVector p,q;
+                  if(abs(norm.x) > abs(norm.y) && abs(norm.x)>abs(norm.z)){
+                    p = new PVector(0,1,0);
+                  }else{
+                    p = new PVector(1,0,0);
+                  }
+                  q = norm.cross(p).normalize();
+                  p = norm.cross(q).normalize();
+                  PVector dir = PVector.add(PVector.add(PVector.mult(p,x), PVector.mult(q,y)), PVector.mult(norm,z));
+                  incomingRayDir = dir;
+                  float rootMax = MAX_FLOAT;
+                  CollisionData finalCData = new CollisionData();
+                  for(int i=0;i<objects.size();i++){
+                      CollisionData tcData = objects.get(i).isIntersects(org,dir);
+                      if(tcData.root > ZERO && tcData.root<rootMax &&  tcData.posOnObj != org){
+                        rootMax = tcData.root;
+                        finalCData = tcData;
+                      }
+                    }
+                  cData = finalCData;
+        }else{
+          //Reflective
+          //So reflect 
+            PVector reflectionDir = PVector.sub(incomingRayDir, PVector.mult(norm,2.0f * PVector.dot(incomingRayDir,norm)));
+            incomingRayDir = reflectionDir;
+            float rootMax = MAX_FLOAT;
+            CollisionData finalCData = new CollisionData();
+            for(int i=0;i<objects.size();i++){
+              CollisionData tcData = objects.get(i).isIntersects(org,reflectionDir);
+              if(tcData.root > ZERO && tcData.root<rootMax &&  tcData.posOnObj != org){
+                rootMax = tcData.root;
+                finalCData = tcData;
+              }
+            }
+            cData = finalCData;
+        }
         if(cData.root > ZERO && cData.root!=MAX_FLOAT){
           hitCount ++;
           if(hitCount > 1){
@@ -410,7 +461,8 @@ class raytracer{
           power.y *= green(surfaceCol)/avg;
           power.z *= blue(surfaceCol)/avg;
           org = cData.posOnObj;
-          dir = cData.normal;
+          norm = cData.normal;
+          surfaceType = materials.get(cData.materialId).getMaterialType();
         }else{
           avg = 0;
         }

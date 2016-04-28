@@ -32,7 +32,7 @@ void setup() {
   printMatrix();
   RTracer = new raytracer();
   RTracer.reset();
-  interpreter("t08.cli");
+  interpreter("t01.cli");
 }
 
 // Press key 1 to 9 and 0 to run different test cases.

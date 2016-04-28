@@ -27,10 +27,6 @@ class kd_tree {
    photon_list.add (p);
  }
  
- int get_photon_count(){
-   return photon_list.size();
- }
- 
  // Build the kd-tree.  Should only be called after all of the
  // photons have been added to the initial list of photons.
  void build_tree() {
@@ -38,7 +34,7 @@ class kd_tree {
  }
  
  // helper function to build tree -- should not be called by user
- kd_node build_tree(ArrayList<Photon> plist) {
+ kd_node build_tree(List<Photon> plist) {
    int i,j;
    
    kd_node node = new kd_node();
@@ -96,38 +92,20 @@ class kd_tree {
    Photon split_photon = plist.get(split_point);
    node.photon = split_photon;
    node.split_axis = sort_axis;
-   plist.remove(split_point);  // remove this photon from the list
-   
-   // split the remaining photons into two separate lists
-   ArrayList<Photon> plist_left  = new ArrayList<Photon>();
-   ArrayList<Photon> plist_right = new ArrayList<Photon>();
-   for (i = plist.size() - 1; i >= 0; i--) {  // use decreasing order because deletion is quicker at end of list
-     Photon photon = plist.get(i);
-     // delete this photon from the main list
-     plist.remove(i);
-     // add this photon to one or the other list
-     if (photon.pos[sort_axis] < split_photon.pos[sort_axis])
-       plist_left.add (photon);
-     else
-       plist_right.add (photon);
-   }
-      
-   // free up plist memory
-   plist = null;
-   
-   // recursively call the build_tree routine twice to create child trees
-   
-   if (plist_left.size() == 0)
+   //if split point is first node, no left tree
+   if (split_point == 0) {
      node.left = null;
-   else
-     node.left = build_tree (plist_left);
-   
-   if (plist_right.size() == 0)
+   }
+   else {
+     node.left = build_tree (plist.subList(0, split_point));
+   }
+   //if split point is last node, no right tree
+   if (split_point == plist.size()-1) {
      node.right = null;
-   else
-     node.right = build_tree (plist_right);
-   
-   // return the newly created node
+   }
+   else {
+     node.right = build_tree (plist.subList(split_point+1,  plist.size()));
+   }
    return (node);
  }
  
@@ -135,7 +113,7 @@ class kd_tree {
  void draw(kd_node n) {
    if (n == null)
      return;
-   ellipse (n.photon.pos[0], n.photon.pos[1], photon_radius, photon_radius);
+   ellipse ((float)n.photon.pos[0], (float)n.photon.pos[1], (float)photon_radius, (float)photon_radius);
    if (n.left != null)
      draw(n.left);
    if (n.right != null)
